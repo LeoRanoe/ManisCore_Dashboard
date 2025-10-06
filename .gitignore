@@ -44,7 +44,6 @@ next-env.d.ts
 # Package managers
 .pnpm-store/
 .pnpm/
-pnpm-lock.yaml
 
 # IDE and editors
 .vscode/
