@@ -37,6 +37,7 @@ model User {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
+  password  String   // Hashed password for authentication
   role      UserRole @default(STAFF)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())

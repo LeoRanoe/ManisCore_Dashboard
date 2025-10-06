@@ -51,6 +51,7 @@ export const CompanyFinancialUpdateSchema = z.object({
 export const UserFormSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name must be less than 100 characters'),
   email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
   role: UserRoleEnum,
   isActive: z.boolean(),
   companyId: z.string().min(1, 'Company is required'),

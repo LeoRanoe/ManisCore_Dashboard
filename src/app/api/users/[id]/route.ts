@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { UserFormSchema } from '@/lib/validations'
+import { hash } from 'bcryptjs'
 
 export async function GET(
   request: NextRequest,
@@ -48,9 +49,19 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid user data', details: validation.error.issues }, { status: 400 })
     }
 
+    // Prepare update data
+    const updateData: any = { ...validation.data }
+    
+    // If password is provided, hash it; otherwise, remove it from update
+    if (validation.data.password) {
+      updateData.password = await hash(validation.data.password, 10)
+    } else {
+      delete updateData.password
+    }
+
     const user = await prisma.user.update({
       where: { id: params.id },
-      data: validation.data,
+      data: updateData,
       include: {
         company: {
           select: {

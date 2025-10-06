@@ -1,9 +1,13 @@
 import { PrismaClient } from '@prisma/client'
+import { hash } from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
 async function main() {
   console.log('🌱 Seeding database...')
+
+  // Hash default password for all users
+  const defaultPassword = await hash('password123', 10)
 
   // Clear existing data (optional - remove this if you want to keep existing data)
   await prisma.expense.deleteMany({})
@@ -44,6 +48,7 @@ async function main() {
       data: {
         name: 'Leonardo',
         email: 'leonardo@maniscor.com',
+        password: defaultPassword,
         role: 'ADMIN',
         isActive: true,
         companyId: companies[0].id, // ManisCor
@@ -53,6 +58,7 @@ async function main() {
       data: {
         name: 'Aryan',
         email: 'aryan@maniscor.com',
+        password: defaultPassword,
         role: 'MANAGER',
         isActive: true,
         companyId: companies[0].id, // ManisCor
@@ -62,6 +68,7 @@ async function main() {
       data: {
         name: 'Tay',
         email: 'tay@bijouxayu.com',
+        password: defaultPassword,
         role: 'MANAGER',
         isActive: true,
         companyId: companies[1].id, // Bijoux Ayu
@@ -71,6 +78,7 @@ async function main() {
       data: {
         name: 'Oresha',
         email: 'oresha@bijouxayu.com',
+        password: defaultPassword,
         role: 'STAFF',
         isActive: true,
         companyId: companies[1].id, // Bijoux Ayu

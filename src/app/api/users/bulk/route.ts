@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { UserFormSchema } from '@/lib/validations'
 import { z } from 'zod'
+import { hash } from 'bcryptjs'
 
 // Schema for bulk operations
 const BulkDeleteSchema = z.object({
@@ -34,8 +35,16 @@ export async function POST(request: NextRequest) {
           }, { status: 400 })
         }
 
+        // Hash passwords for all users
+        const usersWithHashedPasswords = await Promise.all(
+          validation.data.users.map(async (user) => ({
+            ...user,
+            password: await hash(user.password || 'password123', 10),
+          }))
+        )
+
         const createdUsers = await prisma.$transaction(
-          validation.data.users.map((user) =>
+          usersWithHashedPasswords.map((user) =>
             prisma.user.create({ data: user })
           )
         )

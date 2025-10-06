@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { BarChart3, Package, Settings, Users, MapPin, Building2, Menu, X, DollarSign } from 'lucide-react'
+import { BarChart3, Package, Settings, Users, MapPin, Building2, Menu, X, DollarSign, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -15,6 +15,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useCompany } from '../../contexts/company-context'
 import { ThemeToggle } from '../theme-toggle'
+import { signOut } from 'next-auth/react'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -178,10 +179,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </nav>
 
         {/* Footer */}
-        <div className="px-4 py-4 border-t border-border">
+        <div className="px-4 py-4 border-t border-border space-y-2">
           <Button variant="ghost" size="sm" className="w-full justify-start h-12"> {/* Larger for mobile */}
             <Settings className="h-4 w-4 mr-2" />
             Settings
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full justify-start h-12 text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => signOut({ callbackUrl: '/login' })}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
           </Button>
         </div>
       </div>

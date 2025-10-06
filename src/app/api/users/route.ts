@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { UserFormSchema } from '@/lib/validations'
+import { hash } from 'bcryptjs'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,8 +58,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid user data', details: validation.error.issues }, { status: 400 })
     }
 
+    // Hash the password (use provided password or default)
+    const hashedPassword = await hash(validation.data.password || 'password123', 10)
+
     const user = await prisma.user.create({
-      data: validation.data,
+      data: {
+        ...validation.data,
+        password: hashedPassword,
+      },
       include: {
         company: {
           select: {
