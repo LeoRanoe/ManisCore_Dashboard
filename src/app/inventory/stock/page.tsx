@@ -119,50 +119,43 @@ function StockManagementPage() {
 
     setProcessing(true)
     try {
-      let endpoint = ""
-      let body = {}
+      const endpoint = "/api/inventory/actions"
+      let body: any = {
+        action: stockAction,
+        itemId: selectedItem.id,
+      }
 
       switch (stockAction) {
         case "add":
-          // Add stock - just update quantity
-          endpoint = `/api/items/${selectedItem.id}`
-          body = {
-            quantityInStock: selectedItem.quantityInStock + quantity,
-            notes: reason ? `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Added ${quantity} units: ${reason}`.trim() : selectedItem.notes
-          }
+          body.quantityToAdd = quantity
+          body.reason = reason
           break
         case "remove":
-          // Remove stock
-          endpoint = `/api/items/${selectedItem.id}`
-          body = {
-            quantityInStock: Math.max(0, selectedItem.quantityInStock - quantity),
-            notes: reason ? `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Removed ${quantity} units: ${reason}`.trim() : selectedItem.notes
-          }
+          body.quantityToRemove = quantity
+          body.reason = reason
           break
         case "sell":
-          // Sell items - this is more complex and might need a separate endpoint
-          endpoint = `/api/items/${selectedItem.id}`
-          body = {
-            quantityInStock: Math.max(0, selectedItem.quantityInStock - quantity),
-            status: selectedItem.quantityInStock - quantity <= 0 ? "Sold" : selectedItem.status,
-            notes: `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Sold ${quantity} units at SRD ${sellPrice} each`.trim()
-          }
+          body.quantityToSell = quantity
+          body.sellingPriceSRD = sellPrice
           break
       }
 
       const response = await fetch(endpoint, {
-        method: "PUT",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to ${stockAction} stock`)
+        const errorData = await response.json()
+        throw new Error(errorData.message || `Failed to ${stockAction} stock`)
       }
 
+      const result = await response.json()
+      
       toast({
         title: "Success",
-        description: `Successfully ${stockAction === "add" ? "added" : stockAction === "remove" ? "removed" : "sold"} ${quantity} units`,
+        description: result.message || `Successfully ${stockAction === "add" ? "added" : stockAction === "remove" ? "removed" : "sold"} ${quantity} units`,
       })
 
       // Refresh items and close dialog
@@ -172,7 +165,7 @@ function StockManagementPage() {
       console.error(`Error ${stockAction} stock:`, error)
       toast({
         title: "Error",
-        description: `Failed to ${stockAction} stock`,
+        description: error instanceof Error ? error.message : `Failed to ${stockAction} stock`,
         variant: "destructive",
       })
     } finally {

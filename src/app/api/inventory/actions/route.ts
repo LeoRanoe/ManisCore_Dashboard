@@ -16,6 +16,13 @@ const RemoveFromStockSchema = z.object({
   reason: z.string().optional(),
 })
 
+// Schema for add to stock action
+const AddToStockSchema = z.object({
+  itemId: z.string().min(1, 'Item ID is required'),
+  quantityToAdd: z.number().int().min(1, 'Quantity to add must be at least 1'),
+  reason: z.string().optional(),
+})
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -112,6 +119,71 @@ export async function POST(request: NextRequest) {
         })
       }
 
+      case 'add': {
+        const validation = AddToStockSchema.safeParse(body)
+        if (!validation.success) {
+          return NextResponse.json({ 
+            error: 'Invalid add data', 
+            details: validation.error.issues 
+          }, { status: 400 })
+        }
+
+        const { itemId, quantityToAdd, reason } = validation.data
+
+        // Get the item with company info
+        const item = await prisma.item.findUnique({
+          where: { id: itemId },
+          include: { company: true },
+        })
+
+        if (!item) {
+          return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+        }
+
+        // Update item quantity
+        const updatedItem = await prisma.item.update({
+          where: { id: itemId },
+          data: {
+            quantityInStock: item.quantityInStock + quantityToAdd,
+            status: item.status === 'Sold' && item.quantityInStock + quantityToAdd > 0 ? 'Arrived' : item.status,
+          },
+          include: {
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            assignedUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            location: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        })
+
+        return NextResponse.json({
+          success: true,
+          message: `Successfully added ${quantityToAdd}x ${item.name} to stock`,
+          addition: {
+            itemId,
+            itemName: item.name,
+            quantityAdded: quantityToAdd,
+            reason: reason || 'Manual stock addition',
+            newStock: updatedItem.quantityInStock,
+          },
+          updatedItem,
+        })
+      }
+
       case 'remove': {
         const validation = RemoveFromStockSchema.safeParse(body)
         if (!validation.success) {
@@ -198,7 +270,7 @@ export async function POST(request: NextRequest) {
 
       default:
         return NextResponse.json({ 
-          error: 'Invalid action. Must be either "sell" or "remove"' 
+          error: 'Invalid action. Must be "sell", "remove", or "add"' 
         }, { status: 400 })
     }
   } catch (error) {
