@@ -134,19 +134,19 @@ function LocationManagementPage() {
       }
 
       // Add optional fields only if they have valid values (not null, undefined, or empty string)
-      if (selectedItem.supplier && selectedItem.supplier.trim().length > 0) {
+      if (selectedItem.supplier && typeof selectedItem.supplier === 'string' && selectedItem.supplier.trim().length > 0) {
         updateData.supplier = selectedItem.supplier.trim()
       }
-      if (selectedItem.supplierSku && selectedItem.supplierSku.trim().length > 0) {
+      if (selectedItem.supplierSku && typeof selectedItem.supplierSku === 'string' && selectedItem.supplierSku.trim().length > 0) {
         updateData.supplierSku = selectedItem.supplierSku.trim()
       }
-      if (selectedItem.orderDate && selectedItem.orderDate.trim().length > 0) {
+      if (selectedItem.orderDate && typeof selectedItem.orderDate === 'string' && selectedItem.orderDate.trim().length > 0) {
         updateData.orderDate = selectedItem.orderDate.trim()
       }
-      if (selectedItem.expectedArrival && selectedItem.expectedArrival.trim().length > 0) {
+      if (selectedItem.expectedArrival && typeof selectedItem.expectedArrival === 'string' && selectedItem.expectedArrival.trim().length > 0) {
         updateData.expectedArrival = selectedItem.expectedArrival.trim()
       }
-      if (selectedItem.orderNumber && selectedItem.orderNumber.trim().length > 0) {
+      if (selectedItem.orderNumber && typeof selectedItem.orderNumber === 'string' && selectedItem.orderNumber.trim().length > 0) {
         updateData.orderNumber = selectedItem.orderNumber.trim()
       }
       if (selectedItem.profitMarginPercent !== null && selectedItem.profitMarginPercent !== undefined) {
@@ -158,10 +158,10 @@ function LocationManagementPage() {
       if (newNotes && newNotes.trim().length > 0) {
         updateData.notes = newNotes.trim()
       }
-      if (selectedItem.assignedUserId && selectedItem.assignedUserId.trim().length > 0) {
+      if (selectedItem.assignedUserId && typeof selectedItem.assignedUserId === 'string' && selectedItem.assignedUserId.trim().length > 0) {
         updateData.assignedUserId = selectedItem.assignedUserId.trim()
       }
-      if (targetLocationId && targetLocationId.trim().length > 0) {
+      if (targetLocationId && typeof targetLocationId === 'string' && targetLocationId.trim().length > 0) {
         updateData.locationId = targetLocationId.trim()
       }
 
