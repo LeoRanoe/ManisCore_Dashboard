@@ -120,19 +120,25 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    console.log('Received item creation request:', JSON.stringify(body, null, 2))
+    console.log('📥 Received item creation request')
+    console.log('Body:', JSON.stringify(body, null, 2))
     
     const validation = ItemFormSchema.safeParse(body)
 
     if (!validation.success) {
-      console.error('Validation failed:', validation.error.issues)
-      return NextResponse.json({ error: 'Invalid item data', details: validation.error.issues }, { status: 400 })
+      console.error('❌ Validation failed:', validation.error.issues)
+      return NextResponse.json({ 
+        error: 'Invalid item data', 
+        details: validation.error.issues,
+        receivedData: body 
+      }, { status: 400 })
     }
 
     const data = validation.data
+    console.log('✅ Validation passed')
 
-    // Clean up the data - remove null/undefined optional fields
-    const cleanedData: any = {
+    // Build the data object for Prisma
+    const prismaData: any = {
       name: data.name,
       status: data.status,
       quantityInStock: data.quantityInStock,
@@ -142,20 +148,43 @@ export async function POST(request: NextRequest) {
       companyId: data.companyId,
     }
 
-    // Only add optional fields if they have values
-    if (data.supplier) cleanedData.supplier = data.supplier
-    if (data.supplierSku) cleanedData.supplierSku = data.supplierSku
-    if (data.orderDate) cleanedData.orderDate = new Date(data.orderDate)
-    if (data.expectedArrival) cleanedData.expectedArrival = new Date(data.expectedArrival)
-    if (data.orderNumber) cleanedData.orderNumber = data.orderNumber
-    if (data.profitMarginPercent !== null && data.profitMarginPercent !== undefined) cleanedData.profitMarginPercent = data.profitMarginPercent
-    if (data.minStockLevel !== null && data.minStockLevel !== undefined) cleanedData.minStockLevel = data.minStockLevel
-    if (data.notes) cleanedData.notes = data.notes
-    if (data.assignedUserId) cleanedData.assignedUserId = data.assignedUserId
-    if (data.locationId) cleanedData.locationId = data.locationId
+    // Add optional fields only if they exist
+    if (data.supplier) prismaData.supplier = data.supplier
+    if (data.supplierSku) prismaData.supplierSku = data.supplierSku
+    if (data.orderNumber) prismaData.orderNumber = data.orderNumber
+    if (data.notes) prismaData.notes = data.notes
+    if (data.assignedUserId) prismaData.assignedUserId = data.assignedUserId
+    if (data.locationId) prismaData.locationId = data.locationId
+    
+    // Handle date fields - convert string to Date
+    if (data.orderDate) {
+      try {
+        prismaData.orderDate = new Date(data.orderDate)
+      } catch (e) {
+        console.warn('Invalid orderDate format:', data.orderDate)
+      }
+    }
+    if (data.expectedArrival) {
+      try {
+        prismaData.expectedArrival = new Date(data.expectedArrival)
+      } catch (e) {
+        console.warn('Invalid expectedArrival format:', data.expectedArrival)
+      }
+    }
+    
+    // Handle numeric optional fields
+    if (data.profitMarginPercent !== null && data.profitMarginPercent !== undefined) {
+      prismaData.profitMarginPercent = data.profitMarginPercent
+    }
+    if (data.minStockLevel !== null && data.minStockLevel !== undefined) {
+      prismaData.minStockLevel = data.minStockLevel
+    }
+
+    console.log('📦 Prisma data prepared:', JSON.stringify(prismaData, null, 2))
 
     // Check if item is being ordered and we need to deduct cash
     if (data.status === 'Ordered') {
+      console.log('💰 Checking company balance for order...')
       const company = await prisma.company.findUnique({
         where: { id: data.companyId },
         select: {
@@ -166,14 +195,17 @@ export async function POST(request: NextRequest) {
       })
 
       if (!company) {
+        console.error('❌ Company not found:', data.companyId)
         return NextResponse.json({ error: 'Company not found' }, { status: 404 })
       }
 
       // Calculate total order cost (cost per unit + freight, multiplied by quantity)
       const totalOrderCostUSD = (data.costPerUnitUSD * data.quantityInStock) + data.freightCostUSD
+      console.log(`💵 Order cost: $${totalOrderCostUSD}, Available: $${company.cashBalanceUSD}`)
 
       // Check if company has sufficient USD balance
       if (company.cashBalanceUSD < totalOrderCostUSD) {
+        console.error('❌ Insufficient funds')
         return NextResponse.json(
           { 
             error: 'Insufficient funds',
@@ -186,18 +218,20 @@ export async function POST(request: NextRequest) {
       }
 
       // Deduct the cost from company's USD balance
+      console.log('💳 Deducting balance...')
       await prisma.company.update({
         where: { id: data.companyId },
         data: {
           cashBalanceUSD: company.cashBalanceUSD - totalOrderCostUSD,
         },
       })
+      console.log('✅ Balance deducted successfully')
     }
 
-    console.log('Creating item with data:', JSON.stringify(cleanedData, null, 2))
+    console.log('💾 Creating item in database...')
 
     const item = await prisma.item.create({
-      data: cleanedData,
+      data: prismaData,
       include: {
         company: {
           select: {
@@ -221,10 +255,11 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    console.log('Item created successfully:', item.id)
+    console.log('✅ Item created successfully:', item.id)
     return NextResponse.json(item, { status: 201 })
   } catch (error) {
-    console.error('Error creating item:', error)
+    console.error('❌ Error creating item:', error)
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
     return NextResponse.json({ 
       error: 'Internal server error', 
       message: error instanceof Error ? error.message : 'Unknown error',

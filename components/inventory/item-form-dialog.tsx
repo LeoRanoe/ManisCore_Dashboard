@@ -222,8 +222,10 @@ export function ItemFormDialog({
   const onSubmit = async (data: ItemFormData) => {
     setIsSubmitting(true)
     try {
+      console.log('Form data before cleaning:', data)
+      
       // Clean up empty optional fields - convert empty strings to undefined
-      const cleanData = {
+      const cleanData: any = {
         name: data.name,
         status: data.status,
         quantityInStock: data.quantityInStock,
@@ -231,21 +233,39 @@ export function ItemFormDialog({
         freightCostUSD: data.freightCostUSD,
         sellingPriceSRD: data.sellingPriceSRD,
         companyId: data.companyId,
-        supplier: data.supplier && data.supplier.trim() !== "" ? data.supplier : undefined,
-        supplierSku: data.supplierSku && data.supplierSku.trim() !== "" ? data.supplierSku : undefined,
-        orderDate: data.orderDate && data.orderDate.trim() !== "" ? data.orderDate : undefined,
-        expectedArrival: data.expectedArrival && data.expectedArrival.trim() !== "" ? data.expectedArrival : undefined,
-        orderNumber: data.orderNumber && data.orderNumber.trim() !== "" ? data.orderNumber : undefined,
-        profitMarginPercent: data.profitMarginPercent || undefined,
-        minStockLevel: data.minStockLevel || undefined,
-        notes: data.notes && data.notes.trim() !== "" ? data.notes : undefined,
-        assignedUserId: data.assignedUserId && data.assignedUserId !== "none" && data.assignedUserId.trim() !== "" ? data.assignedUserId : undefined,
-        locationId: data.locationId && data.locationId !== "none" && data.locationId.trim() !== "" ? data.locationId : undefined,
       }
+      
+      // Only add optional string fields if they have meaningful values
+      if (data.supplier && data.supplier.trim() !== "") cleanData.supplier = data.supplier.trim()
+      if (data.supplierSku && data.supplierSku.trim() !== "") cleanData.supplierSku = data.supplierSku.trim()
+      if (data.orderDate && data.orderDate.trim() !== "") cleanData.orderDate = data.orderDate.trim()
+      if (data.expectedArrival && data.expectedArrival.trim() !== "") cleanData.expectedArrival = data.expectedArrival.trim()
+      if (data.orderNumber && data.orderNumber.trim() !== "") cleanData.orderNumber = data.orderNumber.trim()
+      if (data.notes && data.notes.trim() !== "") cleanData.notes = data.notes.trim()
+      
+      // Handle numeric optional fields properly (0 is a valid value)
+      if (data.profitMarginPercent !== null && data.profitMarginPercent !== undefined && data.profitMarginPercent !== 0) {
+        cleanData.profitMarginPercent = data.profitMarginPercent
+      }
+      if (data.minStockLevel !== null && data.minStockLevel !== undefined && data.minStockLevel !== 0) {
+        cleanData.minStockLevel = data.minStockLevel
+      }
+      
+      // Handle user and location assignments
+      if (data.assignedUserId && data.assignedUserId !== "none" && data.assignedUserId.trim() !== "") {
+        cleanData.assignedUserId = data.assignedUserId.trim()
+      }
+      if (data.locationId && data.locationId !== "none" && data.locationId.trim() !== "") {
+        cleanData.locationId = data.locationId.trim()
+      }
+      
+      console.log('Cleaned data being sent:', cleanData)
 
       const url = item ? `/api/items/${item.id}` : "/api/items"
       const method = item ? "PUT" : "POST"
 
+      console.log(`Making ${method} request to ${url}`)
+      
       const response = await fetch(url, {
         method,
         headers: {
@@ -255,8 +275,9 @@ export function ItemFormDialog({
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || errorData.message || "Failed to save item")
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Server error response:', errorData)
+        throw new Error(errorData.error || errorData.message || `Failed to save item (${response.status})`)
       }
 
       toast({
@@ -289,6 +310,7 @@ export function ItemFormDialog({
       onClose()
       onSuccess()
     } catch (error) {
+      console.error('Error submitting form:', error)
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to save item. Please try again.",
