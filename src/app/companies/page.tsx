@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Plus, Search, Building2, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { Plus, Search, Building2, MoreHorizontal, Pencil, Trash2, Wallet } from "lucide-react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,6 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { CompanyFormDialog } from "@/components/companies/company-form-dialog"
+import { CompanyFinancialDialog } from "@/components/companies/company-financial-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -52,6 +53,8 @@ function CompaniesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingCompany, setEditingCompany] = useState<Company | undefined>()
+  const [isFinancialDialogOpen, setIsFinancialDialogOpen] = useState(false)
+  const [financialCompany, setFinancialCompany] = useState<Company | undefined>()
   const [deleteCompany, setDeleteCompany] = useState<Company | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
@@ -91,9 +94,19 @@ function CompaniesPage() {
     setIsFormOpen(true)
   }
 
+  const handleManageFinances = (company: Company) => {
+    setFinancialCompany(company)
+    setIsFinancialDialogOpen(true)
+  }
+
   const handleFormClose = () => {
     setIsFormOpen(false)
     setEditingCompany(undefined)
+  }
+
+  const handleFinancialDialogClose = () => {
+    setIsFinancialDialogOpen(false)
+    setFinancialCompany(undefined)
   }
 
   const handleFormSuccess = () => {
@@ -251,6 +264,10 @@ function CompaniesPage() {
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleManageFinances(company)}>
+                            <Wallet className="mr-2 h-4 w-4" />
+                            Manage Finances
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => setDeleteCompany(company)}
@@ -277,6 +294,16 @@ function CompaniesPage() {
         company={editingCompany}
         onSuccess={handleFormSuccess}
       />
+
+      {/* Financial Dialog */}
+      {financialCompany && (
+        <CompanyFinancialDialog
+          isOpen={isFinancialDialogOpen}
+          onClose={handleFinancialDialogClose}
+          company={financialCompany}
+          onSuccess={handleFormSuccess}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteCompany} onOpenChange={() => setDeleteCompany(null)}>
