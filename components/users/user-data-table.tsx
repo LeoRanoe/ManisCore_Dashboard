@@ -37,11 +37,11 @@ interface User {
   email: string
   role: "ADMIN" | "MANAGER" | "STAFF"
   isActive: boolean
-  companyId: string
+  companyId: string | null
   company: {
     id: string
     name: string
-  }
+  } | null
   _count: {
     items: number
     locations: number
@@ -171,7 +171,7 @@ export function UserDataTable({ users, onEdit, onRefresh }: UserDataTableProps) 
                         </Badge>
                       </div>
                       <div className="text-xs text-muted-foreground mt-1 md:hidden">
-                        {user.company.name} • Items: {user._count.items} • Locations: {user._count.locations}
+                        {user.company?.name || 'System Admin'} • Items: {user._count.items} • Locations: {user._count.locations}
                       </div>
                     </div>
                   </TableCell>
@@ -186,7 +186,7 @@ export function UserDataTable({ users, onEdit, onRefresh }: UserDataTableProps) 
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     <span className="text-sm font-medium">
-                      {user.company.name}
+                      {user.company?.name || <Badge variant="outline">System Admin</Badge>}
                     </span>
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">

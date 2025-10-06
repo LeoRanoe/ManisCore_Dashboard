@@ -35,11 +35,11 @@ interface User {
   email: string
   role: "ADMIN" | "MANAGER" | "STAFF"
   isActive: boolean
-  companyId: string
+  companyId: string | null
   company: {
     id: string
     name: string
-  }
+  } | null
   _count: {
     items: number
     locations: number
