@@ -204,29 +204,25 @@ function InventoryPage() {
             View your inventory items and basic metrics. Use quick actions to access detailed management.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button asChild variant="outline" className="gap-2">
-            <Link href="/inventory/stock">
-              <Settings className="h-4 w-4" />
-              Manage Stock
-            </Link>
+        <div className="flex items-center space-x-2">
+          <Button onClick={() => setIsFormOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Add Item
           </Button>
-          <Button asChild variant="outline" className="gap-2">
-            <Link href="/inventory/locations">
-              <MapPin className="h-4 w-4" />
-              Locations
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="gap-2">
-            <Link href="/inventory/orders">
-              <ShoppingCart className="h-4 w-4" />
-              Orders
-            </Link>
-          </Button>
-          <Button onClick={() => setIsFormOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Item
-          </Button>
+          <Link href="/inventory/stock">
+            <Button variant="outline">
+              <Package2 className="mr-2 h-4 w-4" /> Manage Stock
+            </Button>
+          </Link>
+          <Link href="/inventory/locations">
+            <Button variant="outline">
+              <MapPin className="mr-2 h-4 w-4" /> Locations
+            </Button>
+          </Link>
+          <Link href="/inventory/orders">
+            <Button variant="outline">
+              <ShoppingCart className="mr-2 h-4 w-4" /> Orders
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -325,8 +321,8 @@ function InventoryPage() {
         </div>
       </div>
 
-      <SimpleItemDataTable
-        items={items}
+      <SimpleItemDataTable 
+        items={items} 
         onSort={handleSort}
         onEdit={handleEdit}
       />
@@ -335,18 +331,14 @@ function InventoryPage() {
         isOpen={isFormOpen}
         onClose={handleCloseForm}
         item={editingItem}
-        companies={companies}
-        onSuccess={refreshItems}
+        companies={companies || []}
+        onSuccess={() => {
+          handleCloseForm()
+          refreshItems()
+        }}
       />
     </div>
   )
 }
 
-// Wrap with DashboardLayout
-export default function InventoryPageWithLayout() {
-  return (
-    <DashboardLayout>
-      <InventoryPage />
-    </DashboardLayout>
-  )
-}
+export default InventoryPage

@@ -149,7 +149,7 @@ export function SimpleItemDataTable({
                   {item.location ? (
                     <span className="text-sm">{item.location.name}</span>
                   ) : (
-                    <span className="text-sm text-muted-foreground">No location</span>
+                    <span className="text-xs text-muted-foreground">No location</span>
                   )}
                 </TableCell>
                 <TableCell>
@@ -161,13 +161,8 @@ export function SimpleItemDataTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onEdit(item)}
-                    className="gap-1"
-                  >
-                    <Edit className="h-3 w-3" />
+                  <Button variant="outline" size="sm" onClick={() => onEdit(item)}>
+                    <Edit className="mr-2 h-4 w-4" />
                     Edit
                   </Button>
                 </TableCell>
