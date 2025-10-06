@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Plus, Search, Filter, X, DollarSign, TrendingUp, Package2 } from "lucide-react"
+import { Plus, Search, X, DollarSign, TrendingUp, Package2, Settings, MapPin, ShoppingCart } from "lucide-react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,10 +13,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ItemDataTable } from "@/components/inventory/item-data-table"
 import { ItemFormDialog } from "@/components/inventory/item-form-dialog"
+import { SimpleItemDataTable } from "@/components/inventory/simple-item-data-table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCompany } from "../../../contexts/company-context"
+import Link from "next/link"
 
 interface Item {
   id: string
@@ -71,13 +72,9 @@ interface Location {
 function InventoryPage() {
   const [items, setItems] = useState<Item[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
-  const [users, setUsers] = useState<User[]>([])
-  const [locations, setLocations] = useState<Location[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [userFilter, setUserFilter] = useState<string>("all")
-  const [locationFilter, setLocationFilter] = useState<string>("all")
   const [sortBy, setSortBy] = useState("createdAt")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -95,8 +92,6 @@ function InventoryPage() {
         ...(searchQuery && { searchQuery }),
         ...(statusFilter && statusFilter !== "all" && { status: statusFilter }),
         ...(selectedCompany && selectedCompany !== "all" && { companyId: selectedCompany }),
-        ...(userFilter && userFilter !== "all" && { assignedUserId: userFilter }),
-        ...(locationFilter && locationFilter !== "all" && { locationId: locationFilter }),
       })
 
       const response = await fetch(`/api/items?${params}`)
@@ -110,7 +105,7 @@ function InventoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, statusFilter, selectedCompany, userFilter, locationFilter, sortBy, sortOrder])
+  }, [searchQuery, statusFilter, selectedCompany, sortBy, sortOrder])
 
   const fetchCompanies = useCallback(async () => {
     try {
@@ -143,38 +138,10 @@ function InventoryPage() {
     }
   }, [])
 
-  const fetchUsers = useCallback(async () => {
-    try {
-      const response = await fetch("/api/users")
-      if (!response.ok) {
-        throw new Error("Failed to fetch users")
-      }
-      const data = await response.json()
-      setUsers(data.users || [])
-    } catch (error) {
-      console.error("Error fetching users:", error)
-    }
-  }, [])
-
-  const fetchLocations = useCallback(async () => {
-    try {
-      const response = await fetch("/api/locations")
-      if (!response.ok) {
-        throw new Error("Failed to fetch locations")
-      }
-      const data = await response.json()
-      setLocations(data.locations || [])
-    } catch (error) {
-      console.error("Error fetching locations:", error)
-    }
-  }, [])
-
   useEffect(() => {
     fetchItems()
     fetchCompanies()
-    fetchUsers()
-    fetchLocations()
-  }, [fetchItems, fetchCompanies, fetchUsers, fetchLocations])
+  }, [fetchItems, fetchCompanies])
 
   const handleSort = (field: string) => {
     if (field === sortBy) {
@@ -198,17 +165,13 @@ function InventoryPage() {
   const clearFilters = () => {
     setSearchQuery("")
     setStatusFilter("all")
-    setUserFilter("all")
-    setLocationFilter("all")
     setSortBy("createdAt")
     setSortOrder("desc")
   }
 
   const hasActiveFilters = searchQuery || 
     (statusFilter && statusFilter !== "all") ||
-    (selectedCompany && selectedCompany !== "all") ||
-    (userFilter && userFilter !== "all") ||
-    (locationFilter && locationFilter !== "all")
+    (selectedCompany && selectedCompany !== "all")
 
   // Calculate inventory metrics
   const inventoryMetrics = items.reduce((acc, item) => {
@@ -263,15 +226,35 @@ function InventoryPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Inventory Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Inventory Overview</h1>
           <p className="text-muted-foreground">
-            Manage your inventory items, track stock levels, and monitor profitability.
+            View your inventory items and basic metrics. Use quick actions to access detailed management.
           </p>
         </div>
-        <Button onClick={() => setIsFormOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add New Item
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" className="gap-2">
+            <Link href="/inventory/stock">
+              <Settings className="h-4 w-4" />
+              Manage Stock
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-2">
+            <Link href="/inventory/locations">
+              <MapPin className="h-4 w-4" />
+              Locations
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-2">
+            <Link href="/inventory/orders">
+              <ShoppingCart className="h-4 w-4" />
+              Orders
+            </Link>
+          </Button>
+          <Button onClick={() => setIsFormOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Item
+          </Button>
+        </div>
       </div>
 
       {/* Inventory Metrics Cards */}
@@ -328,23 +311,23 @@ function InventoryPage() {
         </Card>
       </div>
 
-      {/* Enhanced Filters - Mobile First */}
+      {/* Simplified Filters */}
       <div className="space-y-4">
         {/* Search Bar */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
-            placeholder="Search by name..."
+            placeholder="Search items by name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 h-12 text-base" // Larger for mobile
+            className="pl-10"
           />
         </div>
 
-        {/* Filter Controls */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {/* Basic Filters */}
+        <div className="flex gap-3 flex-wrap">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-12">
+            <SelectTrigger className="w-48">
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
@@ -356,39 +339,11 @@ function InventoryPage() {
             </SelectContent>
           </Select>
 
-          <Select value={userFilter} onValueChange={setUserFilter}>
-            <SelectTrigger className="h-12">
-              <SelectValue placeholder="All Users" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Users</SelectItem>
-              {users.map((user) => (
-                <SelectItem key={user.id} value={user.id}>
-                  {user.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={locationFilter} onValueChange={setLocationFilter}>
-            <SelectTrigger className="h-12">
-              <SelectValue placeholder="All Locations" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Locations</SelectItem>
-              {locations.map((location) => (
-                <SelectItem key={location.id} value={location.id}>
-                  {location.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
           {hasActiveFilters && (
             <Button 
               variant="outline" 
               onClick={clearFilters} 
-              className="h-12 gap-2 col-span-2 sm:col-span-1"
+              className="gap-2"
             >
               <X className="h-4 w-4" />
               Clear Filters
@@ -397,13 +352,12 @@ function InventoryPage() {
         </div>
       </div>
 
-      <ItemDataTable
+      <SimpleItemDataTable
         items={items}
         sortBy={sortBy}
         sortOrder={sortOrder}
         onSort={handleSort}
         onEdit={handleEdit}
-        onRefresh={fetchItems}
       />
 
       <ItemFormDialog

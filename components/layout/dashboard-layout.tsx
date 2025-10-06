@@ -34,7 +34,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     {
       href: '/inventory',
       label: 'Inventory',
-      icon: Package
+      icon: Package,
+      subItems: [
+        { href: '/inventory', label: 'Overview' },
+        { href: '/inventory/stock', label: 'Stock Management' },
+        { href: '/inventory/locations', label: 'Locations' },
+        { href: '/inventory/orders', label: 'Orders' }
+      ]
     },
     {
       href: '/expenses',
@@ -123,23 +129,49 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon
-              const isActive = pathname === item.href
+              const isActive = pathname === item.href || (item.subItems && item.subItems.some(subItem => pathname === subItem.href))
+              const isExpanded = pathname.startsWith(item.href)
               
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsMobileMenuOpen(false)} // Close mobile menu on nav
-                  className={cn(
-                    "flex items-center px-3 py-3 text-sm font-medium rounded-md transition-colors", // Larger touch targets
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                <div key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)} // Close mobile menu on nav
+                    className={cn(
+                      "flex items-center px-3 py-3 text-sm font-medium rounded-md transition-colors", // Larger touch targets
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                  >
+                    <Icon className="h-5 w-5 mr-3" />
+                    {item.label}
+                  </Link>
+                  
+                  {/* Sub-navigation */}
+                  {item.subItems && isExpanded && (
+                    <div className="ml-8 mt-1 space-y-1">
+                      {item.subItems.map((subItem) => {
+                        const isSubActive = pathname === subItem.href
+                        return (
+                          <Link
+                            key={subItem.href}
+                            href={subItem.href}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className={cn(
+                              "block px-3 py-2 text-sm rounded-md transition-colors",
+                              isSubActive
+                                ? "bg-accent text-accent-foreground font-medium"
+                                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                            )}
+                          >
+                            {subItem.label}
+                          </Link>
+                        )
+                      })}
+                    </div>
                   )}
-                >
-                  <Icon className="h-5 w-5 mr-3" />
-                  {item.label}
-                </Link>
+                </div>
               )
             })}
           </div>
