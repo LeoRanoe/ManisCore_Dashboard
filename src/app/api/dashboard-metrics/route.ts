@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all items with their related data
-    const items = await (prisma as any).item.findMany({
+    const items = await prisma.item.findMany({
       where,
       include: {
         company: {
@@ -45,12 +45,12 @@ export async function GET(request: NextRequest) {
     })
 
     // Calculate total stock value in USD
-    const totalStockValueUSD = items.reduce((total, item) => {
+    const totalStockValueUSD = items.reduce((total: number, item: any) => {
       return total + (item.costPerUnitUSD + (item.freightCostUSD / Math.max(item.quantityInStock, 1))) * item.quantityInStock
     }, 0)
 
     // Calculate total potential revenue in SRD
-    const totalPotentialRevenueSRD = items.reduce((total, item) => {
+    const totalPotentialRevenueSRD = items.reduce((total: number, item: any) => {
       return total + item.sellingPriceSRD * item.quantityInStock
     }, 0)
 
