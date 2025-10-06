@@ -13,9 +13,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ItemFormDialog } from "@/components/inventory/item-form-dialog"
 import { SimpleItemDataTable } from "@/components/inventory/simple-item-data-table"
+import { ItemFormDialog } from "@/components/inventory/item-form-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useItems } from "@/lib/hooks"
 import { useCompany } from "../../../contexts/company-context"
 import Link from "next/link"
 
@@ -70,86 +71,40 @@ interface Location {
 }
 
 function InventoryPage() {
-  const [items, setItems] = useState<Item[]>([])
-  const [companies, setCompanies] = useState<Company[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [sortBy, setSortBy] = useState("createdAt")
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Item | undefined>()
   
-  // Use company context for filtering
-  const { selectedCompany, companies: contextCompanies } = useCompany()
+  // Use dynamic hooks for automatic company filtering and error handling
+  const { 
+    data: itemsData, 
+    loading: itemsLoading, 
+    error: itemsError,
+    refresh: refreshItems 
+  } = useItems(searchQuery, statusFilter)
+
+  const { selectedCompany, companies, loading: companyLoading } = useCompany()
+
+  const items = itemsData?.items || []
+  const loading = itemsLoading || companyLoading
 
   const fetchItems = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = new URLSearchParams({
-        sortBy,
-        order: sortOrder,
-        ...(searchQuery && { searchQuery }),
-        ...(statusFilter && statusFilter !== "all" && { status: statusFilter }),
-        ...(selectedCompany && selectedCompany !== "all" && { companyId: selectedCompany }),
-      })
-
-      const response = await fetch(`/api/items?${params}`)
-      if (!response.ok) {
-        throw new Error("Failed to fetch items")
-      }
-      const data = await response.json()
-      setItems(data.items || [])
-    } catch (error) {
-      console.error("Error fetching items:", error)
-    } finally {
-      setLoading(false)
-    }
-  }, [searchQuery, statusFilter, selectedCompany, sortBy, sortOrder])
+    // This is now handled by the useItems hook
+    refreshItems()
+  }, [refreshItems])
 
   const fetchCompanies = useCallback(async () => {
-    try {
-      const response = await fetch("/api/companies")
-      if (!response.ok) {
-        throw new Error("Failed to fetch companies")
-      }
-      const companiesData = await response.json()
-      
-      // Fetch financial data for each company
-      const companiesWithFinancials = await Promise.all(
-        (companiesData || []).map(async (company: any) => {
-          try {
-            const financialResponse = await fetch(`/api/companies/${company.id}/financial`)
-            if (financialResponse.ok) {
-              const financialData = await financialResponse.json()
-              return { ...company, cashBalanceUSD: financialData.cashBalanceUSD }
-            }
-            return company
-          } catch (error) {
-            console.error(`Error fetching financial data for ${company.name}:`, error)
-            return company
-          }
-        })
-      )
-      
-      setCompanies(companiesWithFinancials)
-    } catch (error) {
-      console.error("Error fetching companies:", error)
-    }
+    // This is now handled by the useCompany context
   }, [])
 
   useEffect(() => {
-    fetchItems()
-    fetchCompanies()
-  }, [fetchItems, fetchCompanies])
+    // Data is automatically fetched by hooks
+  }, [])
 
   const handleSort = (field: string) => {
-    if (field === sortBy) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc")
-    } else {
-      setSortBy(field)
-      setSortOrder("asc")
-    }
+    // Sorting can be implemented in the table component or via API params
+    console.log("Sort by:", field)
   }
 
   const handleEdit = (item: Item) => {
@@ -165,8 +120,6 @@ function InventoryPage() {
   const clearFilters = () => {
     setSearchQuery("")
     setStatusFilter("all")
-    setSortBy("createdAt")
-    setSortOrder("desc")
   }
 
   const hasActiveFilters = searchQuery || 
@@ -195,6 +148,26 @@ function InventoryPage() {
   const profitMargin = inventoryMetrics.totalValueSRD > 0 
     ? ((inventoryMetrics.totalProfitSRD / inventoryMetrics.totalValueSRD) * 100) 
     : 0
+
+  // Error state
+  if (itemsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Inventory Overview</h1>
+            <p className="text-muted-foreground">
+              View your inventory items and basic metrics.
+            </p>
+          </div>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-red-600 mb-4">Error loading inventory: {itemsError}</p>
+          <Button onClick={refreshItems}>Retry</Button>
+        </div>
+      </div>
+    )
+  }
 
   if (loading && items.length === 0) {
     return (
@@ -354,8 +327,6 @@ function InventoryPage() {
 
       <SimpleItemDataTable
         items={items}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
         onSort={handleSort}
         onEdit={handleEdit}
       />
@@ -365,7 +336,7 @@ function InventoryPage() {
         onClose={handleCloseForm}
         item={editingItem}
         companies={companies}
-        onSuccess={fetchItems}
+        onSuccess={refreshItems}
       />
     </div>
   )

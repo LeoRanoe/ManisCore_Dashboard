@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
+import { useItems } from "@/lib/hooks"
 import { useCompany } from "../../../../contexts/company-context"
 import Link from "next/link"
 
@@ -71,8 +72,6 @@ const statusConfig = {
 }
 
 function OrderManagementPage() {
-  const [items, setItems] = useState<Item[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
@@ -80,38 +79,45 @@ function OrderManagementPage() {
   const [statusDialogOpen, setStatusDialogOpen] = useState(false)
   const [processing, setProcessing] = useState(false)
   const { toast } = useToast()
+
+  // Use dynamic hooks for automatic company filtering and error handling
+  const { 
+    data: itemsData, 
+    loading, 
+    error: itemsError,
+    refresh: refreshItems 
+  } = useItems(searchQuery, statusFilter)
+
   const { selectedCompany } = useCompany()
+  const items = itemsData?.items || []
 
-  const fetchItems = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = new URLSearchParams({
-        ...(searchQuery && { searchQuery }),
-        ...(selectedCompany && selectedCompany !== "all" && { companyId: selectedCompany }),
-        ...(statusFilter && statusFilter !== "all" && { status: statusFilter }),
-      })
-
-      const response = await fetch(`/api/items?${params}`)
-      if (!response.ok) {
-        throw new Error("Failed to fetch items")
-      }
-      const data = await response.json()
-      setItems(data.items || [])
-    } catch (error) {
-      console.error("Error fetching items:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch items",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }, [searchQuery, selectedCompany, statusFilter, toast])
-
-  useEffect(() => {
-    fetchItems()
-  }, [fetchItems])
+  // Error state
+  if (itemsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/inventory">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Inventory
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Order Management</h1>
+              <p className="text-muted-foreground">
+                Track order status and manage the order lifecycle of your inventory items.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-red-600 mb-4">Error loading items: {itemsError}</p>
+          <Button onClick={refreshItems}>Retry</Button>
+        </div>
+      </div>
+    )
+  }
 
   const handleStatusUpdate = async () => {
     if (!selectedItem) return
@@ -137,7 +143,7 @@ function OrderManagementPage() {
       })
 
       // Refresh items and close dialog
-      fetchItems()
+      refreshItems()
       closeStatusDialog()
     } catch (error) {
       console.error("Error updating status:", error)
@@ -315,8 +321,8 @@ function OrderManagementPage() {
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>
-                      <Badge variant={statusConfig[item.status].variant}>
-                        {statusConfig[item.status].label}
+                      <Badge variant={statusConfig[item.status as keyof typeof statusConfig]?.variant || "default"}>
+                        {statusConfig[item.status as keyof typeof statusConfig]?.label || item.status}
                       </Badge>
                     </TableCell>
                     <TableCell>{item.quantityInStock} units</TableCell>

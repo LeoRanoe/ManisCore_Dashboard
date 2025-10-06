@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
+import { useItems, useLocations } from "@/lib/hooks"
 import { useCompany } from "../../../../contexts/company-context"
 import Link from "next/link"
 
@@ -77,9 +78,6 @@ const statusConfig = {
 }
 
 function LocationManagementPage() {
-  const [items, setItems] = useState<Item[]>([])
-  const [locations, setLocations] = useState<Location[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [locationFilter, setLocationFilter] = useState<string>("all")
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
@@ -87,57 +85,25 @@ function LocationManagementPage() {
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [processing, setProcessing] = useState(false)
   const { toast } = useToast()
+
+  // Use dynamic hooks for automatic company filtering and error handling
+  const { 
+    data: itemsData, 
+    loading: itemsLoading, 
+    error: itemsError,
+    refresh: refreshItems 
+  } = useItems(searchQuery)
+
+  const { 
+    data: locationsData, 
+    loading: locationsLoading 
+  } = useLocations()
+
   const { selectedCompany } = useCompany()
 
-  const fetchItems = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = new URLSearchParams({
-        ...(searchQuery && { searchQuery }),
-        ...(selectedCompany && selectedCompany !== "all" && { companyId: selectedCompany }),
-        ...(locationFilter && locationFilter !== "all" && { locationId: locationFilter }),
-      })
-
-      const response = await fetch(`/api/items?${params}`)
-      if (!response.ok) {
-        throw new Error("Failed to fetch items")
-      }
-      const data = await response.json()
-      setItems(data.items || [])
-    } catch (error) {
-      console.error("Error fetching items:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch items",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }, [searchQuery, selectedCompany, locationFilter, toast])
-
-  const fetchLocations = useCallback(async () => {
-    try {
-      const response = await fetch("/api/locations")
-      if (!response.ok) {
-        throw new Error("Failed to fetch locations")
-      }
-      const data = await response.json()
-      setLocations(data.locations || [])
-    } catch (error) {
-      console.error("Error fetching locations:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch locations",
-        variant: "destructive",
-      })
-    }
-  }, [toast])
-
-  useEffect(() => {
-    fetchItems()
-    fetchLocations()
-  }, [fetchItems, fetchLocations])
+  const items = itemsData?.items || []
+  const locations = locationsData?.locations || []
+  const loading = itemsLoading || locationsLoading
 
   const handleMoveItem = async () => {
     if (!selectedItem) return
@@ -168,7 +134,7 @@ function LocationManagementPage() {
       })
 
       // Refresh items and close dialog
-      fetchItems()
+      refreshItems()
       closeMoveDialog()
     } catch (error) {
       console.error("Error moving item:", error)
@@ -195,7 +161,7 @@ function LocationManagementPage() {
   }
 
   // Group items by location for better organization
-  const itemsByLocation = items.reduce((acc, item) => {
+  const itemsByLocation = items.reduce((acc: Record<string, { name: string; items: any[] }>, item: any) => {
     const locationKey = item.location?.id || "unassigned"
     const locationName = item.location?.name || "Unassigned"
     
@@ -207,7 +173,35 @@ function LocationManagementPage() {
     }
     acc[locationKey].items.push(item)
     return acc
-  }, {} as Record<string, { name: string; items: Item[] }>)
+  }, {})
+
+  // Error state
+  if (itemsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/inventory">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Inventory
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Location Management</h1>
+              <p className="text-muted-foreground">
+                Manage item locations and track inventory across different storage areas.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-red-600 mb-4">Error loading items: {itemsError}</p>
+          <Button onClick={refreshItems}>Retry</Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -314,8 +308,8 @@ function LocationManagementPage() {
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>
-                      <Badge variant={statusConfig[item.status].variant}>
-                        {statusConfig[item.status].label}
+                      <Badge variant={statusConfig[item.status as keyof typeof statusConfig]?.variant || "default"}>
+                        {statusConfig[item.status as keyof typeof statusConfig]?.label || item.status}
                       </Badge>
                     </TableCell>
                     <TableCell>{item.quantityInStock} units</TableCell>

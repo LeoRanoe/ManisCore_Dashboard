@@ -26,6 +26,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
+import { useItems } from "@/lib/hooks"
 import { useCompany } from "../../../../contexts/company-context"
 import Link from "next/link"
 
@@ -65,8 +66,6 @@ const statusConfig = {
 }
 
 function StockManagementPage() {
-  const [items, setItems] = useState<Item[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
   const [stockAction, setStockAction] = useState<"add" | "remove" | "sell" | null>(null)
@@ -75,37 +74,45 @@ function StockManagementPage() {
   const [reason, setReason] = useState("")
   const [processing, setProcessing] = useState(false)
   const { toast } = useToast()
+
+  // Use dynamic hooks for automatic company filtering and error handling
+  const { 
+    data: itemsData, 
+    loading, 
+    error: itemsError,
+    refresh: refreshItems 
+  } = useItems(searchQuery)
+
   const { selectedCompany } = useCompany()
+  const items = itemsData?.items || []
 
-  const fetchItems = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = new URLSearchParams({
-        ...(searchQuery && { searchQuery }),
-        ...(selectedCompany && selectedCompany !== "all" && { companyId: selectedCompany }),
-      })
-
-      const response = await fetch(`/api/items?${params}`)
-      if (!response.ok) {
-        throw new Error("Failed to fetch items")
-      }
-      const data = await response.json()
-      setItems(data.items || [])
-    } catch (error) {
-      console.error("Error fetching items:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch items",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }, [searchQuery, selectedCompany, toast])
-
-  useEffect(() => {
-    fetchItems()
-  }, [fetchItems])
+  // Error state
+  if (itemsError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/inventory">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Inventory
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Stock Management</h1>
+              <p className="text-muted-foreground">
+                Add, remove, or sell inventory items with detailed tracking.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-red-600 mb-4">Error loading items: {itemsError}</p>
+          <Button onClick={refreshItems}>Retry</Button>
+        </div>
+      </div>
+    )
+  }
 
   const handleStockAction = async () => {
     if (!selectedItem || !stockAction) return
@@ -159,7 +166,7 @@ function StockManagementPage() {
       })
 
       // Refresh items and close dialog
-      fetchItems()
+      refreshItems()
       closeDialog()
     } catch (error) {
       console.error(`Error ${stockAction} stock:`, error)
@@ -257,8 +264,8 @@ function StockManagementPage() {
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>
-                      <Badge variant={statusConfig[item.status].variant}>
-                        {statusConfig[item.status].label}
+                      <Badge variant={statusConfig[item.status as keyof typeof statusConfig]?.variant || "default"}>
+                        {statusConfig[item.status as keyof typeof statusConfig]?.label || item.status}
                       </Badge>
                     </TableCell>
                     <TableCell>

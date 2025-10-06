@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { Plus, Search, Filter, X, Users } from "lucide-react"
+import { useState } from "react"
+import { Plus, Search, X, Users } from "lucide-react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,6 +15,8 @@ import {
 import { UserDataTable } from "@/components/users/user-data-table"
 import { UserFormDialog } from "@/components/users/user-form-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useUsers } from "@/lib/hooks"
+import { useCompany } from "../../../contexts/company-context"
 
 interface User {
   id: string
@@ -33,80 +35,37 @@ interface User {
   }
 }
 
-interface Company {
-  id: string
-  name: string
-}
-
 function UsersPage() {
-  const [users, setUsers] = useState<User[]>([])
-  const [companies, setCompanies] = useState<Company[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [companyFilter, setCompanyFilter] = useState<string>("all")
   const [roleFilter, setRoleFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | undefined>()
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = new URLSearchParams()
-      
-      if (companyFilter && companyFilter !== "all") {
-        params.append("companyId", companyFilter)
-      }
-      
-      if (statusFilter && statusFilter !== "all") {
-        params.append("isActive", statusFilter === "active" ? "true" : "false")
-      }
+  // Use dynamic hooks for automatic company filtering and error handling
+  const { 
+    data: usersData, 
+    loading: usersLoading, 
+    error: usersError,
+    refresh: refreshUsers 
+  } = useUsers()
 
-      const response = await fetch(`/api/users?${params}`)
-      if (!response.ok) {
-        throw new Error("Failed to fetch users")
-      }
-      const data = await response.json()
-      
-      // Filter by search query and role on the client side
-      let filteredUsers = data.users || []
-      
-      if (searchQuery) {
-        filteredUsers = filteredUsers.filter((user: User) =>
-          user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          user.email.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      }
-      
-      if (roleFilter && roleFilter !== "all") {
-        filteredUsers = filteredUsers.filter((user: User) => user.role === roleFilter)
-      }
-      
-      setUsers(filteredUsers)
-    } catch (error) {
-      console.error("Error fetching users:", error)
-    } finally {
-      setLoading(false)
-    }
-  }, [searchQuery, companyFilter, roleFilter, statusFilter])
+  const { selectedCompany, companies, loading: companyLoading } = useCompany()
 
-  const fetchCompanies = useCallback(async () => {
-    try {
-      const response = await fetch("/api/companies")
-      if (!response.ok) {
-        throw new Error("Failed to fetch companies")
-      }
-      const data = await response.json()
-      setCompanies(data || [])
-    } catch (error) {
-      console.error("Error fetching companies:", error)
-    }
-  }, [])
+  // Filter users based on search and other filters
+  const filteredUsers = (usersData?.users || []).filter((user: User) => {
+    const matchesSearch = !searchQuery || 
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    const matchesRole = roleFilter === "all" || user.role === roleFilter
+    const matchesStatus = statusFilter === "all" || 
+      (statusFilter === "active" ? user.isActive : !user.isActive)
+    
+    return matchesSearch && matchesRole && matchesStatus
+  })
 
-  useEffect(() => {
-    fetchUsers()
-    fetchCompanies()
-  }, [fetchUsers, fetchCompanies])
+  const loading = usersLoading || companyLoading
 
   const handleEdit = (user: User) => {
     setEditingUser(user)
@@ -119,14 +78,43 @@ function UsersPage() {
   }
 
   const handleFormSuccess = () => {
-    fetchUsers()
+    refreshUsers()
+    handleFormClose()
   }
 
   const clearFilters = () => {
     setSearchQuery("")
-    setCompanyFilter("all")
     setRoleFilter("all")
     setStatusFilter("all")
+  }
+
+  const hasActiveFilters = searchQuery || 
+    roleFilter !== "all" ||
+    statusFilter !== "all"
+
+  // Error state
+  if (usersError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Users</h1>
+            <p className="text-muted-foreground">
+              Manage your team members and their access levels.
+              {selectedCompany !== "all" && (
+                <span className="block text-sm">
+                  Filtered by: {companies.find(c => c.id === selectedCompany)?.name}
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-red-600 mb-4">Error loading users: {usersError}</p>
+          <Button onClick={refreshUsers}>Retry</Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -159,24 +147,7 @@ function UsersPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:w-auto">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Company</label>
-            <Select value={companyFilter} onValueChange={setCompanyFilter}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Companies</SelectItem>
-                {companies.map((company) => (
-                  <SelectItem key={company.id} value={company.id}>
-                    {company.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:w-auto">
           <div className="space-y-2">
             <label className="text-sm font-medium">Role</label>
             <Select value={roleFilter} onValueChange={setRoleFilter}>
@@ -231,9 +202,9 @@ function UsersPage() {
           </div>
         ) : (
           <UserDataTable
-            users={users}
+            users={filteredUsers}
             onEdit={handleEdit}
-            onRefresh={fetchUsers}
+            onRefresh={refreshUsers}
           />
         )}
       </div>
