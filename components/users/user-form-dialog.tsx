@@ -189,13 +189,14 @@ export function UserFormDialog({
           <div className="space-y-2">
             <Label htmlFor="companyId">Company</Label>
             <Select
-              onValueChange={(value) => setValue("companyId", value)}
-              defaultValue={watch("companyId")}
+              onValueChange={(value) => setValue("companyId", value === "none" ? null : value)}
+              defaultValue={watch("companyId") || undefined}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select company" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">None (System Admin)</SelectItem>
                 {companies.map((company) => (
                   <SelectItem key={company.id} value={company.id}>
                     {company.name}

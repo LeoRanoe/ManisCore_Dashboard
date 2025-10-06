@@ -100,9 +100,20 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'No users found to delete' }, { status: 404 })
         }
 
-        // Delete users
+        // Check if admin is in the list and prevent deletion
+        const adminUser = usersToDelete.find(u => u.email === 'admin@maniscor.com')
+        if (adminUser) {
+          return NextResponse.json({ 
+            error: 'Cannot delete system administrator. This user is protected.' 
+          }, { status: 403 })
+        }
+
+        // Delete users (excluding admin)
         const deletedResult = await prisma.user.deleteMany({
-          where: { id: { in: validation.data.ids } },
+          where: { 
+            id: { in: validation.data.ids },
+            email: { not: 'admin@maniscor.com' } // Extra protection
+          },
         })
 
         console.log(`Bulk deleted ${deletedResult.count} users`)
@@ -110,7 +121,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ 
           success: true, 
           deleted: deletedResult.count,
-          users: usersToDelete
+          users: usersToDelete.filter(u => u.email !== 'admin@maniscor.com')
         })
       }
 

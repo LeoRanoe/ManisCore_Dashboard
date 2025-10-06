@@ -54,7 +54,7 @@ export const UserFormSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters').optional(),
   role: UserRoleEnum,
   isActive: z.boolean(),
-  companyId: z.string().min(1, 'Company is required'),
+  companyId: z.string().optional().nullable(),
 })
 
 export const LocationFormSchema = z.object({

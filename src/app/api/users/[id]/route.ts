@@ -93,6 +93,23 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // First, check if this is the admin user
+    const user = await prisma.user.findUnique({
+      where: { id: params.id },
+      select: { email: true, role: true },
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Protect admin user from deletion
+    if (user.email === 'admin@maniscor.com') {
+      return NextResponse.json({ 
+        error: 'Cannot delete system administrator. This user is protected.' 
+      }, { status: 403 })
+    }
+
     await (prisma as any).user.delete({
       where: { id: params.id },
     })
