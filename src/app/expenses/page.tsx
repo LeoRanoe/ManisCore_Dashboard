@@ -19,14 +19,14 @@ function ExpensesPage() {
   // Fetch expenses
   const { data: expensesData, loading: expensesLoading, error: expensesError, refresh: refreshExpenses } = useExpenses(searchQuery, categoryFilter)
   
-  // Fetch companies
-  const { data: companiesData } = useApi<{ companies: any[] }>("/api/companies")
+  // Fetch companies (API returns array directly, not wrapped in object)
+  const { data: companiesData } = useApi<any[]>("/api/companies")
   
   // Mock user ID (in production this would come from auth)
   const currentUserId = "mock-user-id"
 
   const expenses = expensesData?.expenses || []
-  const companies = companiesData?.companies || []
+  const companies = companiesData || []
 
   // Calculate metrics
   const metrics = useMemo(() => {

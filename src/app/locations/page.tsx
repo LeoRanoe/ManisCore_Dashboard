@@ -21,14 +21,14 @@ function LocationsPage() {
   // Fetch locations
   const { data: locationsData, loading: locationsLoading, error: locationsError, refresh: refreshLocations } = useLocations(searchQuery, statusFilter)
   
-  // Fetch companies
-  const { data: companiesData, loading: companiesLoading } = useApi<{ companies: any[] }>("/api/companies")
+  // Fetch companies (API returns array directly, not wrapped in object)
+  const { data: companiesData, loading: companiesLoading } = useApi<any[]>("/api/companies")
   
   // Fetch users
   const { data: usersData, loading: usersLoading } = useApi<{ users: any[] }>("/api/users")
 
   const locations = locationsData?.locations || []
-  const companies = companiesData?.companies || []
+  const companies = companiesData || []
   const users = usersData?.users || []
 
   // Calculate metrics
