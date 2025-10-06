@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Edit, Trash2, MoreHorizontal, ArrowUpDown } from "lucide-react"
+import { Edit, Trash2, MoreHorizontal, ArrowUpDown, ShoppingCart, Package2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import {
   Table,

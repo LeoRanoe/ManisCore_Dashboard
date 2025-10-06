@@ -67,7 +67,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Check if company exists
+    // Check if company exists and get related data count for logging
     const existingCompany = await prisma.company.findUnique({
       where: {
         id: params.id,
@@ -88,30 +88,37 @@ export async function DELETE(
       return NextResponse.json({ error: 'Company not found' }, { status: 404 })
     }
 
-    // Check if company has related data
-    const hasRelatedData = 
-      existingCompany._count.items > 0 ||
-      existingCompany._count.users > 0 ||
-      existingCompany._count.locations > 0 ||
-      existingCompany._count.expenses > 0
+    // Log what will be deleted for transparency
+    const totalRelatedRecords = 
+      existingCompany._count.items +
+      existingCompany._count.users +
+      existingCompany._count.locations +
+      existingCompany._count.expenses
 
-    if (hasRelatedData) {
-      return NextResponse.json(
-        { 
-          error: 'Cannot delete company with existing items, users, locations, or expenses. Please remove all related data first.' 
-        }, 
-        { status: 409 }
-      )
-    }
+    console.log(`Deleting company "${existingCompany.name}" and ${totalRelatedRecords} related records:`, {
+      items: existingCompany._count.items,
+      users: existingCompany._count.users,
+      locations: existingCompany._count.locations,
+      expenses: existingCompany._count.expenses,
+    })
 
-    // Delete the company
+    // Delete the company (cascade delete will handle all related data)
     await prisma.company.delete({
       where: {
         id: params.id,
       },
     })
 
-    return NextResponse.json({ message: 'Company deleted successfully' })
+    return NextResponse.json({ 
+      message: 'Company and all related data deleted successfully',
+      deletedData: {
+        company: existingCompany.name,
+        items: existingCompany._count.items,
+        users: existingCompany._count.users,
+        locations: existingCompany._count.locations,
+        expenses: existingCompany._count.expenses,
+      }
+    })
   } catch (error) {
     console.error('Error deleting company:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

@@ -8,8 +8,8 @@ import { CompanyProvider } from '../../contexts/company-context'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'ManisCore Portfolio Management',
-  description: 'Modern portfolio and inventory management platform',
+  title: 'ManisCore Company Management',
+  description: 'Modern company and inventory management platform',
 }
 
 export default function RootLayout({

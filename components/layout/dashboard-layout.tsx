@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { BarChart3, Package, Moon, Sun, Settings, Users, MapPin, Building2, Menu, X, DollarSign, TrendingUp } from 'lucide-react'
+import { BarChart3, Package, Settings, Users, MapPin, Building2, Menu, X, DollarSign } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select"
 import { cn } from '@/lib/utils'
 import { useCompany } from '../../contexts/company-context'
+import { ThemeToggle } from '../theme-toggle'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -41,13 +42,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       icon: DollarSign
     },
     {
-      href: '/financial',
-      label: 'Financial',
-      icon: TrendingUp
-    },
-    {
       href: '/companies',
-      label: 'Portfolio',
+      label: 'Companies',
       icon: Building2
     },
     {
@@ -101,17 +97,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="px-4 py-4 border-b border-border">
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Select Portfolio Company
+              Select Company
             </label>
             <Select value={selectedCompany} onValueChange={setSelectedCompany}>
               <SelectTrigger className="w-full">
                 <div className="flex items-center">
                   <Building2 className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="Select portfolio company" />
+                  <SelectValue placeholder="Select company" />
                 </div>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Portfolio Companies</SelectItem>
+                <SelectItem value="all">All Companies</SelectItem>
                 {companies.map((company) => (
                   <SelectItem key={company.id} value={company.id}>
                     {company.name}
@@ -176,7 +172,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               
               <div>
                 <h2 className="text-lg md:text-2xl font-semibold text-foreground">
-                  Portfolio Management
+                  Company Management
                 </h2>
                 {selectedCompany !== "all" && (
                   <div className="hidden md:flex items-center text-sm text-muted-foreground">
@@ -187,11 +183,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="icon">
-                <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                <span className="sr-only">Toggle theme</span>
-              </Button>
+              <ThemeToggle />
             </div>
           </div>
         </header>
