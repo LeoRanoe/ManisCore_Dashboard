@@ -187,9 +187,23 @@ export function ItemDataTable({
                         <div className="text-sm text-muted-foreground sm:hidden">
                           {item.company.name}
                         </div>
+                        <div className="flex gap-2 text-xs text-muted-foreground md:hidden">
+                          <span>Cost: ${item.costPerUnitUSD.toFixed(2)}</span>
+                          <span>•</span>
+                          <span>Price: SRD {item.sellingPriceSRD.toFixed(2)}</span>
+                          <span>•</span>
+                          <span className={item.profitPerUnitSRD >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            Profit: SRD {item.profitPerUnitSRD.toFixed(2)}
+                          </span>
+                        </div>
                         {item.notes && (
                           <div className="text-xs text-muted-foreground">
                             {item.notes}
+                          </div>
+                        )}
+                        {(item as any).supplier && (
+                          <div className="text-xs text-muted-foreground">
+                            Supplier: {(item as any).supplier}
                           </div>
                         )}
                       </div>
@@ -231,9 +245,17 @@ export function ItemDataTable({
                     </TableCell>
                     <TableCell className="text-right hidden xl:table-cell">
                       <div className="space-y-1">
-                        <div className="text-sm">{formatCurrency(item.profitPerUnitSRD, "SRD")}</div>
+                        <div className={`text-sm font-medium ${item.profitPerUnitSRD >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatCurrency(item.profitPerUnitSRD, "SRD")}
+                        </div>
                         <div className="text-xs text-muted-foreground">
                           Total: {formatCurrency(item.totalProfitSRD, "SRD")}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {item.sellingPriceSRD > 0 ? 
+                            `${((item.profitPerUnitSRD / item.sellingPriceSRD) * 100).toFixed(1)}% margin` : 
+                            'No margin'
+                          }
                         </div>
                       </div>
                     </TableCell>

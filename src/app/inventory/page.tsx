@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Plus, Search, Filter, X } from "lucide-react"
+import { Plus, Search, Filter, X, DollarSign, TrendingUp, Package2 } from "lucide-react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,9 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ItemDataTable } from "@/components/inventory/item-data-table"
 import { ItemFormDialog } from "@/components/inventory/item-form-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useCompany } from "../../../contexts/company-context"
 
 interface Item {
   id: string
@@ -74,13 +76,15 @@ function InventoryPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [companyFilter, setCompanyFilter] = useState<string>("all")
   const [userFilter, setUserFilter] = useState<string>("all")
   const [locationFilter, setLocationFilter] = useState<string>("all")
   const [sortBy, setSortBy] = useState("createdAt")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Item | undefined>()
+  
+  // Use company context for filtering
+  const { selectedCompany, companies: contextCompanies } = useCompany()
 
   const fetchItems = useCallback(async () => {
     setLoading(true)
@@ -90,7 +94,7 @@ function InventoryPage() {
         order: sortOrder,
         ...(searchQuery && { searchQuery }),
         ...(statusFilter && statusFilter !== "all" && { status: statusFilter }),
-        ...(companyFilter && companyFilter !== "all" && { companyId: companyFilter }),
+        ...(selectedCompany && selectedCompany !== "all" && { companyId: selectedCompany }),
         ...(userFilter && userFilter !== "all" && { assignedUserId: userFilter }),
         ...(locationFilter && locationFilter !== "all" && { locationId: locationFilter }),
       })
@@ -106,7 +110,7 @@ function InventoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, statusFilter, companyFilter, userFilter, locationFilter, sortBy, sortOrder])
+  }, [searchQuery, statusFilter, selectedCompany, userFilter, locationFilter, sortBy, sortOrder])
 
   const fetchCompanies = useCallback(async () => {
     try {
@@ -194,7 +198,6 @@ function InventoryPage() {
   const clearFilters = () => {
     setSearchQuery("")
     setStatusFilter("all")
-    setCompanyFilter("all")
     setUserFilter("all")
     setLocationFilter("all")
     setSortBy("createdAt")
@@ -203,9 +206,32 @@ function InventoryPage() {
 
   const hasActiveFilters = searchQuery || 
     (statusFilter && statusFilter !== "all") ||
-    (companyFilter && companyFilter !== "all") ||
+    (selectedCompany && selectedCompany !== "all") ||
     (userFilter && userFilter !== "all") ||
     (locationFilter && locationFilter !== "all")
+
+  // Calculate inventory metrics
+  const inventoryMetrics = items.reduce((acc, item) => {
+    const freightPerUnitUSD = item.quantityInStock > 0 ? item.freightCostUSD / item.quantityInStock : 0
+    const totalCostPerUnitUSD = item.costPerUnitUSD + freightPerUnitUSD
+    const usdToSrdRate = 3.75
+    const totalCostPerUnitSRD = totalCostPerUnitUSD * usdToSrdRate
+    const profitPerUnitSRD = item.sellingPriceSRD - totalCostPerUnitSRD
+    const totalProfitSRD = profitPerUnitSRD * item.quantityInStock
+    const totalValueSRD = item.sellingPriceSRD * item.quantityInStock
+    const totalCostSRD = totalCostPerUnitSRD * item.quantityInStock
+
+    return {
+      totalItems: acc.totalItems + item.quantityInStock,
+      totalValueSRD: acc.totalValueSRD + totalValueSRD,
+      totalCostSRD: acc.totalCostSRD + totalCostSRD,
+      totalProfitSRD: acc.totalProfitSRD + totalProfitSRD,
+    }
+  }, { totalItems: 0, totalValueSRD: 0, totalCostSRD: 0, totalProfitSRD: 0 })
+
+  const profitMargin = inventoryMetrics.totalValueSRD > 0 
+    ? ((inventoryMetrics.totalProfitSRD / inventoryMetrics.totalValueSRD) * 100) 
+    : 0
 
   if (loading && items.length === 0) {
     return (
@@ -248,6 +274,60 @@ function InventoryPage() {
         </Button>
       </div>
 
+      {/* Inventory Metrics Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Items</CardTitle>
+            <Package2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{inventoryMetrics.totalItems}</div>
+            <p className="text-xs text-muted-foreground">
+              Items in inventory
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">SRD {inventoryMetrics.totalValueSRD.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">
+              At selling price
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">SRD {inventoryMetrics.totalCostSRD.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">
+              Including freight
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Profit</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${inventoryMetrics.totalProfitSRD >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              SRD {inventoryMetrics.totalProfitSRD.toFixed(2)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {profitMargin.toFixed(1)}% margin
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Enhanced Filters - Mobile First */}
       <div className="space-y-4">
         {/* Search Bar */}
@@ -262,21 +342,7 @@ function InventoryPage() {
         </div>
 
         {/* Filter Controls */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <Select value={companyFilter} onValueChange={setCompanyFilter}>
-            <SelectTrigger className="h-12"> {/* Larger for mobile */}
-              <SelectValue placeholder="All Companies" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Companies</SelectItem>
-              {companies.map((company) => (
-                <SelectItem key={company.id} value={company.id}>
-                  {company.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="h-12">
               <SelectValue placeholder="All Status" />

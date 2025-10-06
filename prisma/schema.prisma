@@ -132,6 +132,13 @@ model Item {
   costPerUnitUSD    Float
   freightCostUSD    Float    @default(0) // Total freight cost for the order, not per unit
   sellingPriceSRD   Float
+  supplier          String?  // Where the item is ordered from
+  supplierSku       String?  // Supplier's product SKU/code
+  orderDate         DateTime? // When the order was placed
+  expectedArrival   DateTime? // Expected arrival date
+  orderNumber       String?  // Order number or reference
+  profitMarginPercent Float? // Profit margin percentage
+  minStockLevel     Int?     // Minimum stock level for reorder alerts
   notes             String?  // Optional notes about the item
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

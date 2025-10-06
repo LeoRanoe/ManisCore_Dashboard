@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { BarChart3, Package, Moon, Sun, Settings, Users, MapPin, Building2, Menu, X, DollarSign, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,11 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from '@/lib/utils'
-
-interface Company {
-  id: string
-  name: string
-}
+import { useCompany } from '../../contexts/company-context'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -25,25 +21,8 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
-  const [companies, setCompanies] = useState<Company[]>([])
-  const [selectedCompany, setSelectedCompany] = useState<string>("all")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-
-  useEffect(() => {
-    const fetchCompanies = async () => {
-      try {
-        const response = await fetch("/api/companies")
-        if (response.ok) {
-          const data = await response.json()
-          setCompanies(data || [])
-        }
-      } catch (error) {
-        console.error("Error fetching companies:", error)
-      }
-    }
-
-    fetchCompanies()
-  }, [])
+  const { selectedCompany, setSelectedCompany, companies } = useCompany()
 
   const navItems = [
     {

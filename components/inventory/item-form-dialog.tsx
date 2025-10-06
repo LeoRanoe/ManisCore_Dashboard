@@ -104,6 +104,13 @@ export function ItemFormDialog({
       costPerUnitUSD: item.costPerUnitUSD,
       freightCostUSD: item.freightCostUSD,
       sellingPriceSRD: item.sellingPriceSRD,
+      supplier: (item as any).supplier || "",
+      supplierSku: (item as any).supplierSku || "",
+      orderDate: (item as any).orderDate || "",
+      expectedArrival: (item as any).expectedArrival || "",
+      orderNumber: (item as any).orderNumber || "",
+      profitMarginPercent: (item as any).profitMarginPercent || 0,
+      minStockLevel: (item as any).minStockLevel || 0,
       notes: item.notes || "",
       companyId: item.companyId,
       assignedUserId: item.assignedUserId || "",
@@ -115,6 +122,13 @@ export function ItemFormDialog({
       costPerUnitUSD: 0,
       freightCostUSD: 0,
       sellingPriceSRD: 0,
+      supplier: "",
+      supplierSku: "",
+      orderDate: "",
+      expectedArrival: "",
+      orderNumber: "",
+      profitMarginPercent: 0,
+      minStockLevel: 0,
       notes: "",
       companyId: "",
       assignedUserId: "",
@@ -449,6 +463,90 @@ export function ItemFormDialog({
               })()}
             </div>
           )}
+
+          {/* Order Management Fields */}
+          <div className="border-t pt-4">
+            <h4 className="font-medium text-sm mb-4">Order Management</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="supplier">Supplier</Label>
+                <Input
+                  id="supplier"
+                  {...register("supplier")}
+                  placeholder="Supplier name or website"
+                />
+                {errors.supplier && (
+                  <p className="text-sm text-red-500">{errors.supplier.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="supplierSku">Supplier SKU</Label>
+                <Input
+                  id="supplierSku"
+                  {...register("supplierSku")}
+                  placeholder="Product code or SKU"
+                />
+                {errors.supplierSku && (
+                  <p className="text-sm text-red-500">{errors.supplierSku.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="orderNumber">Order Number</Label>
+                <Input
+                  id="orderNumber"
+                  {...register("orderNumber")}
+                  placeholder="Order reference number"
+                />
+                {errors.orderNumber && (
+                  <p className="text-sm text-red-500">{errors.orderNumber.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="minStockLevel">Min Stock Level</Label>
+                <Input
+                  id="minStockLevel"
+                  type="number"
+                  min="0"
+                  {...register("minStockLevel", { valueAsNumber: true })}
+                  placeholder="Minimum stock to maintain"
+                />
+                {errors.minStockLevel && (
+                  <p className="text-sm text-red-500">{errors.minStockLevel.message}</p>
+                )}
+              </div>
+
+              {(watchedStatus === "Ordered" || watchedStatus === "Arrived") && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="orderDate">Order Date</Label>
+                    <Input
+                      id="orderDate"
+                      type="date"
+                      {...register("orderDate")}
+                    />
+                    {errors.orderDate && (
+                      <p className="text-sm text-red-500">{errors.orderDate.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="expectedArrival">Expected Arrival</Label>
+                    <Input
+                      id="expectedArrival"
+                      type="date"
+                      {...register("expectedArrival")}
+                    />
+                    {errors.expectedArrival && (
+                      <p className="text-sm text-red-500">{errors.expectedArrival.message}</p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
