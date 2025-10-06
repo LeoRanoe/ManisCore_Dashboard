@@ -123,6 +123,7 @@ export async function POST(request: NextRequest) {
     console.log('📥 Received item creation request')
     console.log('Body:', JSON.stringify(body, null, 2))
     
+    // Validate the incoming data
     const validation = ItemFormSchema.safeParse(body)
 
     if (!validation.success) {
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
     const data = validation.data
     console.log('✅ Validation passed')
 
-    // Build the data object for Prisma
+    // Build the data object for Prisma - only include defined fields
     const prismaData: any = {
       name: data.name,
       status: data.status,
@@ -148,31 +149,51 @@ export async function POST(request: NextRequest) {
       companyId: data.companyId,
     }
 
-    // Add optional fields only if they exist
-    if (data.supplier) prismaData.supplier = data.supplier
-    if (data.supplierSku) prismaData.supplierSku = data.supplierSku
-    if (data.orderNumber) prismaData.orderNumber = data.orderNumber
-    if (data.notes) prismaData.notes = data.notes
-    if (data.assignedUserId) prismaData.assignedUserId = data.assignedUserId
-    if (data.locationId) prismaData.locationId = data.locationId
+    // Only add optional string fields if they have values (not null, not undefined, not empty)
+    if (data.supplier !== null && data.supplier !== undefined) {
+      prismaData.supplier = data.supplier
+    }
+    if (data.supplierSku !== null && data.supplierSku !== undefined) {
+      prismaData.supplierSku = data.supplierSku
+    }
+    if (data.orderNumber !== null && data.orderNumber !== undefined) {
+      prismaData.orderNumber = data.orderNumber
+    }
+    if (data.notes !== null && data.notes !== undefined) {
+      prismaData.notes = data.notes
+    }
+    if (data.assignedUserId !== null && data.assignedUserId !== undefined) {
+      prismaData.assignedUserId = data.assignedUserId
+    }
+    if (data.locationId !== null && data.locationId !== undefined) {
+      prismaData.locationId = data.locationId
+    }
     
-    // Handle date fields - convert string to Date
-    if (data.orderDate) {
+    // Handle date fields - only if they exist and are valid
+    if (data.orderDate !== null && data.orderDate !== undefined) {
       try {
         prismaData.orderDate = new Date(data.orderDate)
+        if (isNaN(prismaData.orderDate.getTime())) {
+          console.warn('⚠️ Invalid orderDate, skipping:', data.orderDate)
+          delete prismaData.orderDate
+        }
       } catch (e) {
-        console.warn('Invalid orderDate format:', data.orderDate)
+        console.warn('⚠️ Error parsing orderDate, skipping:', data.orderDate, e)
       }
     }
-    if (data.expectedArrival) {
+    if (data.expectedArrival !== null && data.expectedArrival !== undefined) {
       try {
         prismaData.expectedArrival = new Date(data.expectedArrival)
+        if (isNaN(prismaData.expectedArrival.getTime())) {
+          console.warn('⚠️ Invalid expectedArrival, skipping:', data.expectedArrival)
+          delete prismaData.expectedArrival
+        }
       } catch (e) {
-        console.warn('Invalid expectedArrival format:', data.expectedArrival)
+        console.warn('⚠️ Error parsing expectedArrival, skipping:', data.expectedArrival, e)
       }
     }
     
-    // Handle numeric optional fields
+    // Handle numeric optional fields - include if not null/undefined
     if (data.profitMarginPercent !== null && data.profitMarginPercent !== undefined) {
       prismaData.profitMarginPercent = data.profitMarginPercent
     }
@@ -229,41 +250,66 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('💾 Creating item in database...')
+    console.log('📊 Prisma data object:', JSON.stringify(prismaData, null, 2))
 
-    const item = await prisma.item.create({
-      data: prismaData,
-      include: {
-        company: {
-          select: {
-            id: true,
-            name: true,
+    let item
+    try {
+      item = await prisma.item.create({
+        data: prismaData,
+        include: {
+          company: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          location: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-        assignedUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        location: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    })
+      })
+    } catch (prismaError: any) {
+      console.error('❌ Prisma create operation failed!')
+      console.error('Error type:', typeof prismaError)
+      console.error('Error name:', prismaError?.name)
+      console.error('Error message:', prismaError?.message)
+      console.error('Error code:', prismaError?.code)
+      console.error('Error meta:', JSON.stringify(prismaError?.meta, null, 2))
+      console.error('Full error:', JSON.stringify(prismaError, null, 2))
+      console.error('Stack trace:', prismaError?.stack)
+      
+      return NextResponse.json({ 
+        error: 'Database error', 
+        message: prismaError?.message || 'Unknown database error',
+        code: prismaError?.code,
+        meta: prismaError?.meta,
+        prismaData: prismaData,  // Include what we tried to save
+      }, { status: 500 })
+    }
 
-    console.log('✅ Item created successfully:', item.id)
+    console.log('✅ Item created successfully with ID:', item.id)
     return NextResponse.json(item, { status: 201 })
   } catch (error) {
-    console.error('❌ Error creating item:', error)
+    console.error('❌ Unexpected error in POST handler:', error)
+    console.error('Error type:', typeof error)
+    console.error('Error name:', error instanceof Error ? error.name : 'N/A')
+    console.error('Error message:', error instanceof Error ? error.message : String(error))
     console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace')
+    
     return NextResponse.json({ 
       error: 'Internal server error', 
       message: error instanceof Error ? error.message : 'Unknown error',
-      details: error instanceof Error ? error.stack : undefined
+      type: error instanceof Error ? error.name : typeof error
     }, { status: 500 })
   }
 }
