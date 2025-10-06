@@ -2,6 +2,7 @@
   "name": "maniscore_dashboard",
   "version": "1.0.0",
   "main": "index.js",
+  "packageManager": "pnpm@10.17.1",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -17,8 +18,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "engines": {
-    "node": ">=18.17.0",
-    "pnpm": ">=8.0.0"
+    "node": ">=18.17.0"
   },
   "keywords": [],
   "author": "",
