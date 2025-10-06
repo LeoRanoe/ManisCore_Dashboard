@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 
+// Mark this route as dynamic
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
+    // Use nextUrl.searchParams instead of new URL(request.url)
+    const searchParams = request.nextUrl.searchParams
     const companyId = searchParams.get('companyId')
     const userId = searchParams.get('userId')
 
