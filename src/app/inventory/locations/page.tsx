@@ -110,22 +110,36 @@ function LocationManagementPage() {
 
     setProcessing(true)
     try {
+      const targetLocation = locations.find(l => l.id === targetLocationId)
+      const newNotes = targetLocationId 
+        ? `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Moved to ${targetLocation?.name}`.trim()
+        : `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Removed from location`.trim()
+
+      // Send all required fields for the item update
+      const updateData = {
+        name: selectedItem.name,
+        status: selectedItem.status,
+        quantityInStock: selectedItem.quantityInStock,
+        costPerUnitUSD: selectedItem.costPerUnitUSD,
+        freightCostUSD: selectedItem.freightCostUSD,
+        sellingPriceSRD: selectedItem.sellingPriceSRD,
+        notes: newNotes,
+        companyId: selectedItem.companyId,
+        assignedUserId: selectedItem.assignedUserId || undefined,
+        locationId: targetLocationId || undefined,
+      }
+
       const response = await fetch(`/api/items/${selectedItem.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          locationId: targetLocationId || null,
-          notes: targetLocationId 
-            ? `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Moved to ${locations.find(l => l.id === targetLocationId)?.name}`.trim()
-            : `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Removed from location`.trim()
-        }),
+        body: JSON.stringify(updateData),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to move item")
+        const errorData = await response.json()
+        throw new Error(errorData.error || errorData.message || "Failed to move item")
       }
 
-      const targetLocation = locations.find(l => l.id === targetLocationId)
       toast({
         title: "Success",
         description: targetLocationId 
@@ -140,7 +154,7 @@ function LocationManagementPage() {
       console.error("Error moving item:", error)
       toast({
         title: "Error",
-        description: "Failed to move item",
+        description: error instanceof Error ? error.message : "Failed to move item",
         variant: "destructive",
       })
     } finally {

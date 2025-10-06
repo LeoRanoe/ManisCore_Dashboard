@@ -26,7 +26,15 @@ const AddToStockSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    console.log('Inventory action request body:', body)
     const { action } = body
+
+    if (!action) {
+      return NextResponse.json({ 
+        error: 'Action is required',
+        message: 'Please specify the action to perform (sell, remove, add)'
+      }, { status: 400 })
+    }
 
     switch (action) {
       case 'sell': {

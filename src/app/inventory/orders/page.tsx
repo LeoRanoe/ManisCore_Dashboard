@@ -124,17 +124,31 @@ function OrderManagementPage() {
 
     setProcessing(true)
     try {
+      const updatedNotes = `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Status updated to ${statusConfig[newStatus].label}`.trim()
+
+      // Send all required fields for the item update
+      const updateData = {
+        name: selectedItem.name,
+        status: newStatus,
+        quantityInStock: selectedItem.quantityInStock,
+        costPerUnitUSD: selectedItem.costPerUnitUSD,
+        freightCostUSD: selectedItem.freightCostUSD,
+        sellingPriceSRD: selectedItem.sellingPriceSRD,
+        notes: updatedNotes,
+        companyId: selectedItem.companyId,
+        assignedUserId: selectedItem.assignedUserId || undefined,
+        locationId: selectedItem.locationId || undefined,
+      }
+
       const response = await fetch(`/api/items/${selectedItem.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: newStatus,
-          notes: `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Status updated to ${statusConfig[newStatus].label}`.trim()
-        }),
+        body: JSON.stringify(updateData),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to update status")
+        const errorData = await response.json()
+        throw new Error(errorData.error || errorData.message || "Failed to update status")
       }
 
       toast({
@@ -149,7 +163,7 @@ function OrderManagementPage() {
       console.error("Error updating status:", error)
       toast({
         title: "Error",
-        description: "Failed to update status",
+        description: error instanceof Error ? error.message : "Failed to update status",
         variant: "destructive",
       })
     } finally {
