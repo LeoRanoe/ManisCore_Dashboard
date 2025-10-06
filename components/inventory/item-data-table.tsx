@@ -36,13 +36,26 @@ interface Item {
   status: "ToOrder" | "Ordered" | "Arrived" | "Sold"
   quantityInStock: number
   costPerUnitUSD: number
-  freightPerUnitUSD: number
+  freightCostUSD: number
   sellingPriceSRD: number
+  notes?: string
   totalCostPerUnitUSD: number
   profitPerUnitSRD: number
   totalProfitSRD: number
   companyId: string
+  assignedUserId?: string
+  locationId?: string
   company: {
+    id: string
+    name: string
+  }
+  assignedUser?: {
+    id: string
+    name: string
+    email: string
+  }
+  location?: {
+    id: string
     name: string
   }
   createdAt: string
@@ -119,102 +132,140 @@ export function ItemDataTable({
   )
 
   const formatCurrency = (amount: number, currency: string) => {
+    if (currency === "SRD") {
+      return `SRD ${amount.toFixed(2)}`
+    }
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: currency === "USD" ? "USD" : "SRD",
+      currency: currency,
       minimumFractionDigits: 2,
     }).format(amount)
   }
 
   return (
     <>
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                <SortableHeader field="name">Name</SortableHeader>
-              </TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>
-                <SortableHeader field="status">Status</SortableHeader>
-              </TableHead>
-              <TableHead className="text-right">
-                <SortableHeader field="quantityInStock">Quantity</SortableHeader>
-              </TableHead>
-              <TableHead className="text-right">
-                <SortableHeader field="costPerUnitUSD">Cost/Unit</SortableHeader>
-              </TableHead>
-              <TableHead className="text-right">Total Cost</TableHead>
-              <TableHead className="text-right">
-                <SortableHeader field="sellingPriceSRD">Selling Price</SortableHeader>
-              </TableHead>
-              <TableHead className="text-right">Profit/Unit</TableHead>
-              <TableHead className="text-right">Total Profit</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.length === 0 ? (
+      <div className="rounded-md border overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground">
-                  No items found.
-                </TableCell>
+                <TableHead className="min-w-[150px]">
+                  <SortableHeader field="name">Item</SortableHeader>
+                </TableHead>
+                <TableHead className="hidden sm:table-cell">Company</TableHead>
+                <TableHead className="hidden md:table-cell">User</TableHead>
+                <TableHead className="hidden lg:table-cell">Location</TableHead>
+                <TableHead>
+                  <SortableHeader field="status">Status</SortableHeader>
+                </TableHead>
+                <TableHead className="text-right">
+                  <SortableHeader field="quantityInStock">Qty</SortableHeader>
+                </TableHead>
+                <TableHead className="text-right hidden md:table-cell">
+                  <SortableHeader field="costPerUnitUSD">Cost</SortableHeader>
+                </TableHead>
+                <TableHead className="text-right hidden lg:table-cell">
+                  <SortableHeader field="sellingPriceSRD">Price</SortableHeader>
+                </TableHead>
+                <TableHead className="text-right hidden xl:table-cell">Profit</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.name}</TableCell>
-                  <TableCell>{item.company.name}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusConfig[item.status].variant}>
-                      {statusConfig[item.status].label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">{item.quantityInStock}</TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(item.costPerUnitUSD, "USD")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(item.totalCostPerUnitUSD, "USD")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(item.sellingPriceSRD, "SRD")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(item.profitPerUnitSRD, "SRD")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(item.totalProfitSRD, "SRD")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEdit(item)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setDeleteDialogItem(item)}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+            </TableHeader>
+            <TableBody>
+              {items.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                    No items found.
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                items.map((item) => (
+                  <TableRow key={item.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">
+                      <div className="space-y-1">
+                        <div className="font-medium">{item.name}</div>
+                        <div className="text-sm text-muted-foreground sm:hidden">
+                          {item.company.name}
+                        </div>
+                        {item.notes && (
+                          <div className="text-xs text-muted-foreground">
+                            {item.notes}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">{item.company.name}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {item.assignedUser ? (
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">{item.assignedUser.name}</div>
+                          <div className="text-xs text-muted-foreground">{item.assignedUser.email}</div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">Unassigned</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {item.location ? (
+                        <span className="text-sm">{item.location.name}</span>
+                      ) : (
+                        <span className="text-muted-foreground">No location</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusConfig[item.status].variant} className="whitespace-nowrap">
+                        {statusConfig[item.status].label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">{item.quantityInStock}</TableCell>
+                    <TableCell className="text-right hidden md:table-cell">
+                      <div className="space-y-1">
+                        <div className="text-sm">{formatCurrency(item.costPerUnitUSD, "USD")}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Total: {formatCurrency(item.totalCostPerUnitUSD, "USD")}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right hidden lg:table-cell">
+                      {formatCurrency(item.sellingPriceSRD, "SRD")}
+                    </TableCell>
+                    <TableCell className="text-right hidden xl:table-cell">
+                      <div className="space-y-1">
+                        <div className="text-sm">{formatCurrency(item.profitPerUnitSRD, "SRD")}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Total: {formatCurrency(item.totalProfitSRD, "SRD")}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => onEdit(item)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setDeleteDialogItem(item)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       <AlertDialog

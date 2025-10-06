@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid query parameters', details: validation.error.issues }, { status: 400 })
     }
 
-    const { page, limit, sortBy, order, status, searchQuery } = validation.data
+    const { page, limit, sortBy, order, status, searchQuery, companyId, assignedUserId, locationId } = validation.data
 
     // Build where clause
     const where: any = {}
@@ -28,16 +28,46 @@ export async function GET(request: NextRequest) {
         mode: 'insensitive',
       }
     }
+    
+    if (companyId) {
+      where.companyId = companyId
+    }
+    
+    if (assignedUserId) {
+      where.assignedUserId = assignedUserId
+    }
+    
+    if (locationId) {
+      where.locationId = locationId
+    }
 
     // Calculate pagination
     const skip = (page - 1) * limit
 
-    // Fetch items with companies
+    // Fetch items with related data
     const [items, totalCount] = await Promise.all([
       prisma.item.findMany({
         where,
         include: {
-          company: true,
+          company: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          location: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
         orderBy: {
           [sortBy]: order,
@@ -50,7 +80,9 @@ export async function GET(request: NextRequest) {
 
     // Calculate additional fields for each item
     const itemsWithCalculations = items.map(item => {
-      const totalCostPerUnitUSD = item.costPerUnitUSD + item.freightPerUnitUSD
+      // Freight cost is now total per order, so divide by quantity for per-unit cost
+      const freightPerUnitUSD = item.quantityInStock > 0 ? item.freightCostUSD / item.quantityInStock : 0
+      const totalCostPerUnitUSD = item.costPerUnitUSD + freightPerUnitUSD
       const usdToSrdRate = 3.75 // Approximate exchange rate
       const totalCostPerUnitSRD = totalCostPerUnitUSD * usdToSrdRate
       const profitPerUnitSRD = item.sellingPriceSRD - totalCostPerUnitSRD
@@ -58,7 +90,7 @@ export async function GET(request: NextRequest) {
 
       return {
         ...item,
-        totalCostPerUnitUSD,
+        totalCostPerUnitUSD: Number(totalCostPerUnitUSD.toFixed(2)),
         profitPerUnitSRD: Number(profitPerUnitSRD.toFixed(2)),
         totalProfitSRD: Number(totalProfitSRD.toFixed(2)),
       }
@@ -92,10 +124,70 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid item data', details: validation.error.issues }, { status: 400 })
     }
 
-    const item = await prisma.item.create({
-      data: validation.data,
+    const data = validation.data
+
+    // Check if item is being ordered and we need to deduct cash
+    if (data.status === 'Ordered') {
+      const company = await (prisma as any).company.findUnique({
+        where: { id: data.companyId },
+        select: {
+          id: true,
+          name: true,
+          cashBalanceUSD: true,
+        },
+      })
+
+      if (!company) {
+        return NextResponse.json({ error: 'Company not found' }, { status: 404 })
+      }
+
+      // Calculate total order cost (cost per unit + freight, multiplied by quantity)
+      const totalOrderCostUSD = (data.costPerUnitUSD * data.quantityInStock) + data.freightCostUSD
+
+      // Check if company has sufficient USD balance
+      if (company.cashBalanceUSD < totalOrderCostUSD) {
+        return NextResponse.json(
+          { 
+            error: 'Insufficient funds',
+            message: `Company ${company.name} has insufficient USD balance. Required: $${totalOrderCostUSD.toFixed(2)}, Available: $${company.cashBalanceUSD.toFixed(2)}`,
+            required: totalOrderCostUSD,
+            available: company.cashBalanceUSD,
+          },
+          { status: 400 }
+        )
+      }
+
+      // Deduct the cost from company's USD balance
+      await (prisma as any).company.update({
+        where: { id: data.companyId },
+        data: {
+          cashBalanceUSD: company.cashBalanceUSD - totalOrderCostUSD,
+        },
+      })
+    }
+
+    const item = await (prisma as any).item.create({
+      data,
       include: {
-        company: true,
+        company: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        assignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        location: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     })
 

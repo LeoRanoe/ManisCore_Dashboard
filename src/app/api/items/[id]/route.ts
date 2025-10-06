@@ -16,20 +16,98 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid item data', details: validation.error.issues }, { status: 400 })
     }
 
+    const data = validation.data
+
     // Check if item exists
-    const existingItem = await prisma.item.findUnique({
+    const existingItem = await (prisma as any).item.findUnique({
       where: { id },
+      include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+            cashBalanceUSD: true,
+          },
+        },
+      },
     })
 
     if (!existingItem) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
-    const updatedItem = await prisma.item.update({
+    // Check if status is changing from "ToOrder" to "Ordered" - this triggers cash deduction
+    if (existingItem.status === 'ToOrder' && data.status === 'Ordered') {
+      if (!existingItem.company) {
+        return NextResponse.json({ error: 'Company not found' }, { status: 404 })
+      }
+
+      // Calculate total order cost (cost per unit + freight, multiplied by quantity)
+      const totalOrderCostUSD = (data.costPerUnitUSD * data.quantityInStock) + data.freightCostUSD
+
+      // Check if company has sufficient USD balance
+      if (existingItem.company.cashBalanceUSD < totalOrderCostUSD) {
+        return NextResponse.json(
+          { 
+            error: 'Insufficient funds',
+            message: `Company ${existingItem.company.name} has insufficient USD balance. Required: $${totalOrderCostUSD.toFixed(2)}, Available: $${existingItem.company.cashBalanceUSD.toFixed(2)}`,
+            required: totalOrderCostUSD,
+            available: existingItem.company.cashBalanceUSD,
+          },
+          { status: 400 }
+        )
+      }
+
+      // Deduct the cost from company's USD balance
+      await (prisma as any).company.update({
+        where: { id: existingItem.companyId },
+        data: {
+          cashBalanceUSD: existingItem.company.cashBalanceUSD - totalOrderCostUSD,
+        },
+      })
+    }
+
+    // Check if status is changing from "Ordered" back to "ToOrder" - this refunds the cash
+    if (existingItem.status === 'Ordered' && data.status === 'ToOrder') {
+      if (!existingItem.company) {
+        return NextResponse.json({ error: 'Company not found' }, { status: 404 })
+      }
+
+      // Calculate the refund amount using existing item costs
+      const refundAmountUSD = (existingItem.costPerUnitUSD * existingItem.quantityInStock) + existingItem.freightCostUSD
+
+      // Refund the cost to company's USD balance
+      await (prisma as any).company.update({
+        where: { id: existingItem.companyId },
+        data: {
+          cashBalanceUSD: existingItem.company.cashBalanceUSD + refundAmountUSD,
+        },
+      })
+    }
+
+    const updatedItem = await (prisma as any).item.update({
       where: { id },
-      data: validation.data,
+      data,
       include: {
-        company: true,
+        company: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        assignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        location: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     })
 

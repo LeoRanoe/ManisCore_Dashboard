@@ -1,0 +1,233 @@
+"use client"
+
+import { useState } from "react"
+import { format } from "date-fns"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { ExpenseFormDialog } from "./expense-form-dialog"
+import { useToast } from "@/components/ui/use-toast"
+import { Edit2, Trash2, DollarSign } from "lucide-react"
+
+interface Expense {
+  id: string
+  description: string
+  amount: number
+  currency: "SRD" | "USD"
+  category: string
+  date: string
+  company: {
+    id: string
+    name: string
+  }
+  createdBy: {
+    id: string
+    name: string
+    email: string
+  }
+}
+
+interface Company {
+  id: string
+  name: string
+  cashBalanceSRD: number
+  cashBalanceUSD: number
+}
+
+interface ExpenseDataTableProps {
+  expenses: Expense[]
+  companies: Company[]
+  currentUserId: string
+  onUpdate: () => void
+}
+
+const categoryColors: Record<string, string> = {
+  DINNER: "bg-orange-100 text-orange-800",
+  OFFICE_SUPPLIES: "bg-blue-100 text-blue-800",
+  TRANSPORTATION: "bg-green-100 text-green-800",
+  UTILITIES: "bg-purple-100 text-purple-800",
+  MARKETING: "bg-pink-100 text-pink-800",
+  MAINTENANCE: "bg-yellow-100 text-yellow-800",
+  MISCELLANEOUS: "bg-gray-100 text-gray-800",
+}
+
+const categoryLabels: Record<string, string> = {
+  DINNER: "Dinner",
+  OFFICE_SUPPLIES: "Office Supplies",
+  TRANSPORTATION: "Transportation",
+  UTILITIES: "Utilities",
+  MARKETING: "Marketing",
+  MAINTENANCE: "Maintenance",
+  MISCELLANEOUS: "Miscellaneous",
+}
+
+export function ExpenseDataTable({ 
+  expenses, 
+  companies, 
+  currentUserId, 
+  onUpdate 
+}: ExpenseDataTableProps) {
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const { toast } = useToast()
+
+  const handleDelete = async (expense: Expense) => {
+    setDeletingId(expense.id)
+    try {
+      const response = await fetch(`/api/expenses/${expense.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete expense')
+      }
+
+      toast({
+        title: "Expense deleted",
+        description: `The expense has been deleted and ${expense.currency === 'SRD' ? 'SRD ' : '$'}${expense.amount.toFixed(2)} has been returned to ${expense.company.name}.`,
+      })
+
+      onUpdate()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete expense",
+        variant: "destructive",
+      })
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const getCurrencySymbol = (currency: string) => {
+    return currency === "SRD" ? "SRD " : "$"
+  }
+
+  if (expenses.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-muted-foreground">No expenses found</h3>
+        <p className="text-sm text-muted-foreground">Start by adding your first expense.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Description</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead>Company</TableHead>
+            <TableHead>Created By</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {expenses.map((expense) => (
+            <TableRow key={expense.id}>
+              <TableCell className="font-medium">{expense.description}</TableCell>
+              <TableCell className="font-mono">
+                <span className="font-semibold">
+                  {getCurrencySymbol(expense.currency)}{expense.amount.toFixed(2)}
+                </span>
+                <span className="ml-1 text-xs text-muted-foreground">
+                  {expense.currency}
+                </span>
+              </TableCell>
+              <TableCell>
+                <Badge 
+                  variant="secondary" 
+                  className={categoryColors[expense.category] || categoryColors.MISCELLANEOUS}
+                >
+                  {categoryLabels[expense.category] || expense.category}
+                </Badge>
+              </TableCell>
+              <TableCell>{expense.company.name}</TableCell>
+              <TableCell>
+                <div className="flex flex-col">
+                  <span className="text-sm">{expense.createdBy.name}</span>
+                  <span className="text-xs text-muted-foreground">{expense.createdBy.email}</span>
+                </div>
+              </TableCell>
+              <TableCell>{format(new Date(expense.date), "MMM dd, yyyy")}</TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-2">
+                  <ExpenseFormDialog
+                    expense={expense}
+                    companies={companies}
+                    currentUserId={currentUserId}
+                    onSuccess={onUpdate}
+                    trigger={
+                      <Button variant="outline" size="sm">
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    }
+                  />
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete this expense? This will return{" "}
+                          <strong>
+                            {getCurrencySymbol(expense.currency)}{expense.amount.toFixed(2)}
+                          </strong>{" "}
+                          to {expense.company.name}'s cash balance.
+                          <br />
+                          <br />
+                          This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(expense)}
+                          disabled={deletingId === expense.id}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          {deletingId === expense.id ? "Deleting..." : "Delete"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}

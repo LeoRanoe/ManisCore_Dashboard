@@ -18,9 +18,65 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
-  items Item[] // A company can have many items
+  // Financial tracking
+  cashBalanceSRD Float @default(0) // Cash balance in SRD
+  cashBalanceUSD Float @default(0) // Cash balance in USD
+  stockValueSRD  Float @default(0) // Value of stock in SRD
+  stockValueUSD  Float @default(0) // Value of stock in USD
+  
+  items     Item[]     // A company can have many items
+  users     User[]     // A company can have many users
+  locations Location[] // A company can have many locations
+  expenses  Expense[]  // A company can have many expenses
 
   @@map("companies")
+}
+
+// Represents a user who manages inventory
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      UserRole @default(STAFF)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  items     Item[]     // Items assigned to this user
+  locations Location[] // Locations managed by this user
+  expenses  Expense[]  // Expenses created by this user
+
+  @@map("users")
+}
+
+// Represents a physical location where stock is stored
+model Location {
+  id          String   @id @default(cuid())
+  name        String   // e.g., "Aryan's Storage", "Leonardo's Warehouse"
+  address     String?  // Optional physical address
+  description String?  // Optional description
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  managerId String?
+  manager   User? @relation(fields: [managerId], references: [id], onDelete: SetNull)
+  
+  items Item[] // Items stored at this location
+
+  @@map("locations")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
 }
 
 enum Status {
@@ -30,20 +86,64 @@ enum Status {
   Sold
 }
 
-// Represents one item in the inventory, linked to a company
+enum ExpenseCategory {
+  DINNER
+  OFFICE_SUPPLIES
+  MARKETING
+  TRANSPORTATION
+  UTILITIES
+  RENT
+  MAINTENANCE
+  MISCELLANEOUS
+}
+
+enum Currency {
+  SRD
+  USD
+}
+
+// Represents business expenses and write-offs
+model Expense {
+  id          String          @id @default(cuid())
+  description String
+  amount      Float
+  currency    Currency        @default(SRD)
+  category    ExpenseCategory @default(MISCELLANEOUS)
+  date        DateTime        @default(now())
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@map("expenses")
+}
+
+// Represents one item in the inventory, linked to a company, user, and location
 model Item {
   id                String   @id @default(cuid())
   name              String
   status            Status   @default(ToOrder)
   quantityInStock   Int      @default(0)
   costPerUnitUSD    Float
-  freightPerUnitUSD Float    @default(0)
+  freightCostUSD    Float    @default(0) // Total freight cost for the order, not per unit
   sellingPriceSRD   Float
+  notes             String?  // Optional notes about the item
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  assignedUserId String?
+  assignedUser   User? @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
 
   @@map("items")
 }

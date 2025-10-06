@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useToast } from "@/components/ui/use-toast"
@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -27,6 +28,20 @@ import { ItemFormSchema, type ItemFormData } from "@/lib/validations"
 interface Company {
   id: string
   name: string
+  cashBalanceUSD?: number
+}
+
+interface User {
+  id: string
+  name: string
+  email: string
+  companyId: string
+}
+
+interface Location {
+  id: string
+  name: string
+  companyId: string
 }
 
 interface Item {
@@ -35,9 +50,22 @@ interface Item {
   status: "ToOrder" | "Ordered" | "Arrived" | "Sold"
   quantityInStock: number
   costPerUnitUSD: number
-  freightPerUnitUSD: number
+  freightCostUSD: number
   sellingPriceSRD: number
+  notes?: string
   companyId: string
+  assignedUserId?: string
+  locationId?: string
+  company: {
+    name: string
+  }
+  assignedUser?: {
+    name: string
+    email: string
+  }
+  location?: {
+    name: string
+  }
 }
 
 interface ItemFormDialogProps {
@@ -56,6 +84,8 @@ export function ItemFormDialog({
   onSuccess,
 }: ItemFormDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [users, setUsers] = useState<User[]>([])
+  const [locations, setLocations] = useState<Location[]>([])
   const { toast } = useToast()
 
   const {
@@ -67,23 +97,76 @@ export function ItemFormDialog({
     formState: { errors },
   } = useForm<ItemFormData>({
     resolver: zodResolver(ItemFormSchema),
-    defaultValues: item || {
+    defaultValues: item ? {
+      name: item.name,
+      status: item.status,
+      quantityInStock: item.quantityInStock,
+      costPerUnitUSD: item.costPerUnitUSD,
+      freightCostUSD: item.freightCostUSD,
+      sellingPriceSRD: item.sellingPriceSRD,
+      notes: item.notes || "",
+      companyId: item.companyId,
+      assignedUserId: item.assignedUserId || "",
+      locationId: item.locationId || "",
+    } : {
       name: "",
       status: "ToOrder",
       quantityInStock: 0,
       costPerUnitUSD: 0,
-      freightPerUnitUSD: 0,
+      freightCostUSD: 0,
       sellingPriceSRD: 0,
+      notes: "",
       companyId: "",
+      assignedUserId: "",
+      locationId: "",
     },
   })
 
   const watchedStatus = watch("status")
   const watchedCompanyId = watch("companyId")
 
+  // Fetch users and locations when company changes
+  useEffect(() => {
+    const fetchUsersAndLocations = async () => {
+      if (!watchedCompanyId) {
+        setUsers([])
+        setLocations([])
+        return
+      }
+
+      try {
+        // Fetch users for the selected company
+        const usersResponse = await fetch(`/api/users?companyId=${watchedCompanyId}`)
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json()
+          setUsers(usersData.users || [])
+        }
+
+        // Fetch locations for the selected company
+        const locationsResponse = await fetch(`/api/locations?companyId=${watchedCompanyId}`)
+        if (locationsResponse.ok) {
+          const locationsData = await locationsResponse.json()
+          setLocations(locationsData.locations || [])
+        }
+      } catch (error) {
+        console.error("Error fetching users/locations:", error)
+      }
+    }
+
+    fetchUsersAndLocations()
+  }, [watchedCompanyId])
+
   const onSubmit = async (data: ItemFormData) => {
     setIsSubmitting(true)
     try {
+      // Clean up empty optional fields
+      const cleanData = {
+        ...data,
+        notes: data.notes || undefined,
+        assignedUserId: data.assignedUserId && data.assignedUserId !== "none" ? data.assignedUserId : undefined,
+        locationId: data.locationId && data.locationId !== "none" ? data.locationId : undefined,
+      }
+
       const url = item ? `/api/items/${item.id}` : "/api/items"
       const method = item ? "PUT" : "POST"
 
@@ -92,11 +175,12 @@ export function ItemFormDialog({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(cleanData),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to save item")
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to save item")
       }
 
       toast({
@@ -110,7 +194,7 @@ export function ItemFormDialog({
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to save item. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to save item. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -120,7 +204,7 @@ export function ItemFormDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{item ? "Edit Item" : "Add New Item"}</DialogTitle>
           <DialogDescription>
@@ -131,62 +215,71 @@ export function ItemFormDialog({
         </DialogHeader>
         
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              {...register("name")}
-              placeholder="Enter item name"
-            />
-            {errors.name && (
-              <p className="text-sm text-red-500">{errors.name.message}</p>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Item Name *</Label>
+              <Input
+                id="name"
+                {...register("name")}
+                placeholder="Enter item name"
+              />
+              {errors.name && (
+                <p className="text-sm text-red-500">{errors.name.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="company">Company *</Label>
+              <Select
+                value={watchedCompanyId}
+                onValueChange={(value) => {
+                  setValue("companyId", value)
+                  // Clear user and location when company changes
+                  setValue("assignedUserId", "")
+                  setValue("locationId", "")
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a company" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies
+                    .filter((company) => company.id && company.id !== "")
+                    .map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {errors.companyId && (
+                <p className="text-sm text-red-500">{errors.companyId.message}</p>
+              )}
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="company">Company</Label>
-            <Select
-              value={watchedCompanyId}
-              onValueChange={(value) => setValue("companyId", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a company" />
-              </SelectTrigger>
-              <SelectContent>
-                {companies.map((company) => (
-                  <SelectItem key={company.id} value={company.id}>
-                    {company.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.companyId && (
-              <p className="text-sm text-red-500">{errors.companyId.message}</p>
-            )}
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="status">Status *</Label>
+              <Select
+                value={watchedStatus}
+                onValueChange={(value) => setValue("status", value as any)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ToOrder">To Order</SelectItem>
+                  <SelectItem value="Ordered">Ordered</SelectItem>
+                  <SelectItem value="Arrived">Arrived</SelectItem>
+                  <SelectItem value="Sold">Sold</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.status && (
+                <p className="text-sm text-red-500">{errors.status.message}</p>
+              )}
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select
-              value={watchedStatus}
-              onValueChange={(value) => setValue("status", value as any)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ToOrder">To Order</SelectItem>
-                <SelectItem value="Ordered">Ordered</SelectItem>
-                <SelectItem value="Arrived">Arrived</SelectItem>
-                <SelectItem value="Sold">Sold</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.status && (
-              <p className="text-sm text-red-500">{errors.status.message}</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="quantityInStock">Quantity in Stock</Label>
               <Input
@@ -201,7 +294,59 @@ export function ItemFormDialog({
                 </p>
               )}
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="assignedUserId">Assigned User</Label>
+              <Select
+                value={watch("assignedUserId")}
+                onValueChange={(value) => setValue("assignedUserId", value)}
+                disabled={!watchedCompanyId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={watchedCompanyId ? "Select user" : "Select company first"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No user assigned</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name} ({user.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.assignedUserId && (
+                <p className="text-sm text-red-500">{errors.assignedUserId.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="locationId">Location</Label>
+              <Select
+                value={watch("locationId")}
+                onValueChange={(value) => setValue("locationId", value)}
+                disabled={!watchedCompanyId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={watchedCompanyId ? "Select location" : "Select company first"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No location assigned</SelectItem>
+                  {locations.map((location) => (
+                    <SelectItem key={location.id} value={location.id}>
+                      {location.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.locationId && (
+                <p className="text-sm text-red-500">{errors.locationId.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="costPerUnitUSD">Cost per Unit (USD)</Label>
               <Input
@@ -217,21 +362,19 @@ export function ItemFormDialog({
                 </p>
               )}
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="freightPerUnitUSD">Freight per Unit (USD)</Label>
+              <Label htmlFor="freightCostUSD">Freight Cost (USD)</Label>
               <Input
-                id="freightPerUnitUSD"
+                id="freightCostUSD"
                 type="number"
                 step="0.01"
-                {...register("freightPerUnitUSD", { valueAsNumber: true })}
+                {...register("freightCostUSD", { valueAsNumber: true })}
                 placeholder="0.00"
               />
-              {errors.freightPerUnitUSD && (
+              {errors.freightCostUSD && (
                 <p className="text-sm text-red-500">
-                  {errors.freightPerUnitUSD.message}
+                  {errors.freightCostUSD.message}
                 </p>
               )}
             </div>
@@ -253,7 +396,74 @@ export function ItemFormDialog({
             </div>
           </div>
 
-          <DialogFooter>
+          {/* Cash Balance Information */}
+          {watchedStatus === "Ordered" && watchedCompanyId && (
+            <div className="p-4 bg-muted rounded-lg border-l-4 border-l-blue-500">
+              <h4 className="font-medium text-sm mb-2">Order Cost Information</h4>
+              {(() => {
+                const selectedCompany = companies.find(c => c.id === watchedCompanyId)
+                const costPerUnit = Number(watch("costPerUnitUSD")) || 0
+                const freight = Number(watch("freightCostUSD")) || 0
+                const quantity = Number(watch("quantityInStock")) || 0
+                const totalCost = (costPerUnit * quantity) + freight
+                
+                return (
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Cost per unit:</span>
+                      <span>${costPerUnit.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Quantity:</span>
+                      <span>{quantity}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Freight cost:</span>
+                      <span>${freight.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2 font-medium">
+                      <span>Total order cost:</span>
+                      <span>${totalCost.toFixed(2)}</span>
+                    </div>
+                    {selectedCompany?.cashBalanceUSD !== undefined && (
+                      <>
+                        <div className="flex justify-between">
+                          <span>Company USD balance:</span>
+                          <span>${selectedCompany.cashBalanceUSD.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Remaining after order:</span>
+                          <span className={selectedCompany.cashBalanceUSD >= totalCost ? "text-green-600" : "text-red-600"}>
+                            ${(selectedCompany.cashBalanceUSD - totalCost).toFixed(2)}
+                          </span>
+                        </div>
+                        {selectedCompany.cashBalanceUSD < totalCost && (
+                          <div className="mt-2 p-2 bg-red-100 text-red-700 rounded text-xs">
+                            ⚠️ Insufficient funds! Company needs ${(totalCost - selectedCompany.cashBalanceUSD).toFixed(2)} more USD.
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              {...register("notes")}
+              placeholder="Additional notes about this item (optional)"
+              rows={3}
+            />
+            {errors.notes && (
+              <p className="text-sm text-red-500">{errors.notes.message}</p>
+            )}
+          </div>
+
+          <DialogFooter className="flex gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>

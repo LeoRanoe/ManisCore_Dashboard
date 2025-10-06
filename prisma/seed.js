@@ -14,114 +14,71 @@ async function main() {
     },
   })
 
-  const techCorp = await prisma.company.upsert({
-    where: { name: 'TechCorp' },
+  const bijouAyu = await prisma.company.upsert({
+    where: { name: 'Bijoux Ayu' },
     update: {},
     create: {
-      name: 'TechCorp',
+      name: 'Bijoux Ayu',
     },
   })
 
-  const electronics = await prisma.company.upsert({
-    where: { name: 'Electronics Plus' },
-    update: {},
-    create: {
-      name: 'Electronics Plus',
-    },
-  })
-
-  // Create sample items
+  // Create sample items - KZ audio products for ManisCor
   const items = [
     {
-      name: 'iPhone 15 Pro',
-      status: 'Arrived',
-      quantityInStock: 25,
-      costPerUnitUSD: 800,
-      freightPerUnitUSD: 20,
-      sellingPriceSRD: 6000,
-      companyId: maniscore.id,
-    },
-    {
-      name: 'Samsung Galaxy S24',
-      status: 'Ordered',
-      quantityInStock: 0,
-      costPerUnitUSD: 750,
-      freightPerUnitUSD: 18,
-      sellingPriceSRD: 5800,
-      companyId: maniscore.id,
-    },
-    {
-      name: 'MacBook Pro M3',
-      status: 'ToOrder',
-      quantityInStock: 3,
-      costPerUnitUSD: 1500,
-      freightPerUnitUSD: 50,
-      sellingPriceSRD: 12000,
-      companyId: techCorp.id,
-    },
-    {
-      name: 'Dell XPS 13',
-      status: 'Arrived',
-      quantityInStock: 8,
-      costPerUnitUSD: 1200,
-      freightPerUnitUSD: 40,
-      sellingPriceSRD: 9500,
-      companyId: techCorp.id,
-    },
-    {
-      name: 'AirPods Pro 2',
-      status: 'Sold',
-      quantityInStock: 50,
-      costPerUnitUSD: 180,
-      freightPerUnitUSD: 5,
-      sellingPriceSRD: 1400,
-      companyId: electronics.id,
-    },
-    {
-      name: 'Sony WH-1000XM5',
-      status: 'Arrived',
-      quantityInStock: 2,
-      costPerUnitUSD: 280,
-      freightPerUnitUSD: 8,
-      sellingPriceSRD: 2200,
-      companyId: electronics.id,
-    },
-    {
-      name: 'iPad Air M2',
-      status: 'ToOrder',
-      quantityInStock: 1,
-      costPerUnitUSD: 600,
-      freightPerUnitUSD: 15,
-      sellingPriceSRD: 4800,
-      companyId: maniscore.id,
-    },
-    {
-      name: 'Surface Laptop 5',
-      status: 'Ordered',
-      quantityInStock: 0,
-      costPerUnitUSD: 1000,
-      freightPerUnitUSD: 30,
-      sellingPriceSRD: 8000,
-      companyId: techCorp.id,
-    },
-    {
-      name: 'Apple Watch Series 9',
+      name: 'KZ EDX Pro',
       status: 'Arrived',
       quantityInStock: 15,
-      costPerUnitUSD: 350,
-      freightPerUnitUSD: 10,
-      sellingPriceSRD: 2800,
-      companyId: electronics.id,
-    },
-    {
-      name: 'Google Pixel 8',
-      status: 'Sold',
-      quantityInStock: 30,
-      costPerUnitUSD: 600,
-      freightPerUnitUSD: 15,
-      sellingPriceSRD: 4500,
+      costPerUnitUSD: 25,
+      freightCostUSD: 37.5, // Total freight for this order (15 units)
+      sellingPriceSRD: 200,
       companyId: maniscore.id,
     },
+    {
+      name: 'KZ Castor Pro',
+      status: 'Arrived',
+      quantityInStock: 12,
+      costPerUnitUSD: 35,
+      freightCostUSD: 36.0, // Total freight for this order (12 units)
+      sellingPriceSRD: 280,
+      companyId: maniscore.id,
+    },
+    {
+      name: 'KZ Carol Pro',
+      status: 'Arrived',
+      quantityInStock: 8,
+      costPerUnitUSD: 45,
+      freightCostUSD: 28.0, // Total freight for this order (8 units)
+      sellingPriceSRD: 360,
+      companyId: maniscore.id,
+    },
+    {
+      name: 'KZ ZSN Pro X',
+      status: 'Ordered',
+      quantityInStock: 0,
+      costPerUnitUSD: 30,
+      freightCostUSD: 0, // No freight yet as order hasn't arrived
+      sellingPriceSRD: 240,
+      companyId: maniscore.id,
+    },
+    {
+      name: 'KZ DQ6S',
+      status: 'ToOrder',
+      quantityInStock: 0,
+      costPerUnitUSD: 55,
+      freightCostUSD: 0, // No freight yet as not ordered
+      sellingPriceSRD: 440,
+      companyId: maniscore.id,
+    },
+    {
+      name: 'KZ PR2',
+      status: 'Sold',
+      quantityInStock: 25,
+      costPerUnitUSD: 20,
+      freightCostUSD: 50.0, // Total freight for this order (25 units)
+      sellingPriceSRD: 160,
+      companyId: maniscore.id,
+    },
+    // Bijoux Ayu has no items yet as the company hasn't started
   ]
 
   for (const item of items) {

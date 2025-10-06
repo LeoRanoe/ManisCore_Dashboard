@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Plus, Search, Filter, X } from "lucide-react"
+import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -21,13 +22,26 @@ interface Item {
   status: "ToOrder" | "Ordered" | "Arrived" | "Sold"
   quantityInStock: number
   costPerUnitUSD: number
-  freightPerUnitUSD: number
+  freightCostUSD: number
   sellingPriceSRD: number
+  notes?: string
   totalCostPerUnitUSD: number
   profitPerUnitSRD: number
   totalProfitSRD: number
   companyId: string
+  assignedUserId?: string
+  locationId?: string
   company: {
+    id: string
+    name: string
+  }
+  assignedUser?: {
+    id: string
+    name: string
+    email: string
+  }
+  location?: {
+    id: string
     name: string
   }
   createdAt: string
@@ -36,14 +50,33 @@ interface Item {
 interface Company {
   id: string
   name: string
+  cashBalanceUSD?: number
 }
 
-export default function InventoryPage() {
+interface User {
+  id: string
+  name: string
+  email: string
+  companyId: string
+}
+
+interface Location {
+  id: string
+  name: string
+  companyId: string
+}
+
+function InventoryPage() {
   const [items, setItems] = useState<Item[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
+  const [users, setUsers] = useState<User[]>([])
+  const [locations, setLocations] = useState<Location[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [companyFilter, setCompanyFilter] = useState<string>("all")
+  const [userFilter, setUserFilter] = useState<string>("all")
+  const [locationFilter, setLocationFilter] = useState<string>("all")
   const [sortBy, setSortBy] = useState("createdAt")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -56,7 +89,10 @@ export default function InventoryPage() {
         sortBy,
         order: sortOrder,
         ...(searchQuery && { searchQuery }),
-        ...(statusFilter && { status: statusFilter }),
+        ...(statusFilter && statusFilter !== "all" && { status: statusFilter }),
+        ...(companyFilter && companyFilter !== "all" && { companyId: companyFilter }),
+        ...(userFilter && userFilter !== "all" && { assignedUserId: userFilter }),
+        ...(locationFilter && locationFilter !== "all" && { locationId: locationFilter }),
       })
 
       const response = await fetch(`/api/items?${params}`)
@@ -70,7 +106,7 @@ export default function InventoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, statusFilter, sortBy, sortOrder])
+  }, [searchQuery, statusFilter, companyFilter, userFilter, locationFilter, sortBy, sortOrder])
 
   const fetchCompanies = useCallback(async () => {
     try {
@@ -78,17 +114,63 @@ export default function InventoryPage() {
       if (!response.ok) {
         throw new Error("Failed to fetch companies")
       }
-      const data = await response.json()
-      setCompanies(data.companies || [])
+      const companiesData = await response.json()
+      
+      // Fetch financial data for each company
+      const companiesWithFinancials = await Promise.all(
+        (companiesData || []).map(async (company: any) => {
+          try {
+            const financialResponse = await fetch(`/api/companies/${company.id}/financial`)
+            if (financialResponse.ok) {
+              const financialData = await financialResponse.json()
+              return { ...company, cashBalanceUSD: financialData.cashBalanceUSD }
+            }
+            return company
+          } catch (error) {
+            console.error(`Error fetching financial data for ${company.name}:`, error)
+            return company
+          }
+        })
+      )
+      
+      setCompanies(companiesWithFinancials)
     } catch (error) {
       console.error("Error fetching companies:", error)
+    }
+  }, [])
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      const response = await fetch("/api/users")
+      if (!response.ok) {
+        throw new Error("Failed to fetch users")
+      }
+      const data = await response.json()
+      setUsers(data.users || [])
+    } catch (error) {
+      console.error("Error fetching users:", error)
+    }
+  }, [])
+
+  const fetchLocations = useCallback(async () => {
+    try {
+      const response = await fetch("/api/locations")
+      if (!response.ok) {
+        throw new Error("Failed to fetch locations")
+      }
+      const data = await response.json()
+      setLocations(data.locations || [])
+    } catch (error) {
+      console.error("Error fetching locations:", error)
     }
   }, [])
 
   useEffect(() => {
     fetchItems()
     fetchCompanies()
-  }, [fetchItems, fetchCompanies])
+    fetchUsers()
+    fetchLocations()
+  }, [fetchItems, fetchCompanies, fetchUsers, fetchLocations])
 
   const handleSort = (field: string) => {
     if (field === sortBy) {
@@ -111,12 +193,19 @@ export default function InventoryPage() {
 
   const clearFilters = () => {
     setSearchQuery("")
-    setStatusFilter("")
+    setStatusFilter("all")
+    setCompanyFilter("all")
+    setUserFilter("all")
+    setLocationFilter("all")
     setSortBy("createdAt")
     setSortOrder("desc")
   }
 
-  const hasActiveFilters = searchQuery || statusFilter
+  const hasActiveFilters = searchQuery || 
+    (statusFilter && statusFilter !== "all") ||
+    (companyFilter && companyFilter !== "all") ||
+    (userFilter && userFilter !== "all") ||
+    (locationFilter && locationFilter !== "all")
 
   if (loading && items.length === 0) {
     return (
@@ -159,37 +248,87 @@ export default function InventoryPage() {
         </Button>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
+      {/* Enhanced Filters - Mobile First */}
+      <div className="space-y-4">
+        {/* Search Bar */}
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
             placeholder="Search by name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 h-12 text-base" // Larger for mobile
           />
         </div>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="All Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">All Status</SelectItem>
-            <SelectItem value="ToOrder">To Order</SelectItem>
-            <SelectItem value="Ordered">Ordered</SelectItem>
-            <SelectItem value="Arrived">Arrived</SelectItem>
-            <SelectItem value="Sold">Sold</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* Filter Controls */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <Select value={companyFilter} onValueChange={setCompanyFilter}>
+            <SelectTrigger className="h-12"> {/* Larger for mobile */}
+              <SelectValue placeholder="All Companies" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Companies</SelectItem>
+              {companies.map((company) => (
+                <SelectItem key={company.id} value={company.id}>
+                  {company.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        {hasActiveFilters && (
-          <Button variant="outline" size="sm" onClick={clearFilters} className="gap-2">
-            <X className="h-4 w-4" />
-            Clear
-          </Button>
-        )}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-12">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="ToOrder">To Order</SelectItem>
+              <SelectItem value="Ordered">Ordered</SelectItem>
+              <SelectItem value="Arrived">Arrived</SelectItem>
+              <SelectItem value="Sold">Sold</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={userFilter} onValueChange={setUserFilter}>
+            <SelectTrigger className="h-12">
+              <SelectValue placeholder="All Users" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Users</SelectItem>
+              {users.map((user) => (
+                <SelectItem key={user.id} value={user.id}>
+                  {user.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={locationFilter} onValueChange={setLocationFilter}>
+            <SelectTrigger className="h-12">
+              <SelectValue placeholder="All Locations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              {locations.map((location) => (
+                <SelectItem key={location.id} value={location.id}>
+                  {location.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {hasActiveFilters && (
+            <Button 
+              variant="outline" 
+              onClick={clearFilters} 
+              className="h-12 gap-2 col-span-2 sm:col-span-1"
+            >
+              <X className="h-4 w-4" />
+              Clear Filters
+            </Button>
+          )}
+        </div>
       </div>
 
       <ItemDataTable
@@ -209,5 +348,14 @@ export default function InventoryPage() {
         onSuccess={fetchItems}
       />
     </div>
+  )
+}
+
+// Wrap with DashboardLayout
+export default function InventoryPageWithLayout() {
+  return (
+    <DashboardLayout>
+      <InventoryPage />
+    </DashboardLayout>
   )
 }
