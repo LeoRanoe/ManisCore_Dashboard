@@ -118,12 +118,33 @@ function LocationManagementPage() {
     setProcessing(true)
     try {
       const targetLocation = locations.find(l => l.id === targetLocationId)
-      const newNotes = targetLocationId 
-        ? `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Moved to ${targetLocation?.name}`.trim()
-        : `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Removed from location`.trim()
+      
+      // Helper function to safely get string value
+      const getStringValue = (value: string | null | undefined): string | undefined => {
+        if (value === null || value === undefined) return undefined
+        if (typeof value !== 'string') return undefined
+        const trimmed = value.trim()
+        return trimmed.length > 0 ? trimmed : undefined
+      }
 
-      // Include ALL fields from the item to preserve data
-      const updateData: any = {
+      // Helper function to safely get number value
+      const getNumberValue = (value: number | null | undefined): number | undefined => {
+        if (value === null || value === undefined) return undefined
+        if (typeof value === 'number') return value
+        return undefined
+      }
+
+      // Build notes with move history
+      const existingNotes = getStringValue(selectedItem.notes) || ""
+      const moveNote = targetLocationId 
+        ? `[${new Date().toLocaleDateString()}] Moved to ${targetLocation?.name}`
+        : `[${new Date().toLocaleDateString()}] Removed from location`
+      const newNotes = existingNotes 
+        ? `${existingNotes}\n${moveNote}`
+        : moveNote
+
+      // Build update data with only required fields first
+      const updateData: Record<string, any> = {
         name: selectedItem.name,
         status: selectedItem.status,
         quantityInStock: selectedItem.quantityInStock,
@@ -131,41 +152,42 @@ function LocationManagementPage() {
         freightCostUSD: selectedItem.freightCostUSD,
         sellingPriceSRD: selectedItem.sellingPriceSRD,
         companyId: selectedItem.companyId,
+        notes: newNotes,
       }
 
-      // Add optional fields only if they have valid values (not null, undefined, or empty string)
-      if (selectedItem.supplier && typeof selectedItem.supplier === 'string' && selectedItem.supplier.trim().length > 0) {
-        updateData.supplier = selectedItem.supplier.trim()
-      }
-      if (selectedItem.supplierSku && typeof selectedItem.supplierSku === 'string' && selectedItem.supplierSku.trim().length > 0) {
-        updateData.supplierSku = selectedItem.supplierSku.trim()
-      }
-      if (selectedItem.orderDate && typeof selectedItem.orderDate === 'string' && selectedItem.orderDate.trim().length > 0) {
-        updateData.orderDate = selectedItem.orderDate.trim()
-      }
-      if (selectedItem.expectedArrival && typeof selectedItem.expectedArrival === 'string' && selectedItem.expectedArrival.trim().length > 0) {
-        updateData.expectedArrival = selectedItem.expectedArrival.trim()
-      }
-      if (selectedItem.orderNumber && typeof selectedItem.orderNumber === 'string' && selectedItem.orderNumber.trim().length > 0) {
-        updateData.orderNumber = selectedItem.orderNumber.trim()
-      }
-      if (selectedItem.profitMarginPercent !== null && selectedItem.profitMarginPercent !== undefined) {
-        updateData.profitMarginPercent = selectedItem.profitMarginPercent
-      }
-      if (selectedItem.minStockLevel !== null && selectedItem.minStockLevel !== undefined) {
-        updateData.minStockLevel = selectedItem.minStockLevel
-      }
-      if (newNotes && newNotes.trim().length > 0) {
-        updateData.notes = newNotes.trim()
-      }
-      if (selectedItem.assignedUserId && typeof selectedItem.assignedUserId === 'string' && selectedItem.assignedUserId.trim().length > 0) {
-        updateData.assignedUserId = selectedItem.assignedUserId.trim()
-      }
-      if (targetLocationId && typeof targetLocationId === 'string' && targetLocationId.trim().length > 0) {
-        updateData.locationId = targetLocationId.trim()
-      }
+      // Add optional string fields
+      const supplier = getStringValue(selectedItem.supplier)
+      if (supplier) updateData.supplier = supplier
 
-      console.log('Sending move update:', JSON.stringify(updateData, null, 2))
+      const supplierSku = getStringValue(selectedItem.supplierSku)
+      if (supplierSku) updateData.supplierSku = supplierSku
+
+      const orderDate = getStringValue(selectedItem.orderDate)
+      if (orderDate) updateData.orderDate = orderDate
+
+      const expectedArrival = getStringValue(selectedItem.expectedArrival)
+      if (expectedArrival) updateData.expectedArrival = expectedArrival
+
+      const orderNumber = getStringValue(selectedItem.orderNumber)
+      if (orderNumber) updateData.orderNumber = orderNumber
+
+      const assignedUserId = getStringValue(selectedItem.assignedUserId)
+      if (assignedUserId) updateData.assignedUserId = assignedUserId
+
+      // Add location (can be undefined to remove location)
+      const locationId = getStringValue(targetLocationId)
+      if (locationId) updateData.locationId = locationId
+
+      // Add optional number fields
+      const profitMargin = getNumberValue(selectedItem.profitMarginPercent)
+      if (profitMargin !== undefined) updateData.profitMarginPercent = profitMargin
+
+      const minStock = getNumberValue(selectedItem.minStockLevel)
+      if (minStock !== undefined) updateData.minStockLevel = minStock
+
+      console.log('📦 Moving item:', selectedItem.name)
+      console.log('🎯 Target location:', targetLocationId || 'Unassigned')
+      console.log('📝 Update data:', JSON.stringify(updateData, null, 2))
 
       const response = await fetch(`/api/items/${selectedItem.id}`, {
         method: "PUT",
@@ -174,9 +196,13 @@ function LocationManagementPage() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || errorData.message || "Failed to move item")
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('❌ Move failed:', errorData)
+        throw new Error(errorData.error || errorData.message || `Failed to move item (${response.status})`)
       }
+
+      const result = await response.json()
+      console.log('✅ Move successful:', result)
 
       toast({
         title: "Success",
@@ -189,7 +215,7 @@ function LocationManagementPage() {
       refreshItems()
       closeMoveDialog()
     } catch (error) {
-      console.error("Error moving item:", error)
+      console.error("❌ Error moving item:", error)
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to move item",
