@@ -8,6 +8,16 @@ export async function GET() {
       orderBy: {
         name: 'asc',
       },
+      include: {
+        _count: {
+          select: {
+            items: true,
+            users: true,
+            locations: true,
+            expenses: true,
+          },
+        },
+      },
     })
 
     return NextResponse.json(companies)

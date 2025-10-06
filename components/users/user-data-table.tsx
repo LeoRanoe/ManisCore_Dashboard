@@ -138,11 +138,11 @@ export function UserDataTable({ users, onEdit, onRefresh }: UserDataTableProps) 
             <TableHeader>
               <TableRow className="bg-gray-50 dark:bg-gray-800">
                 <TableHead className="font-semibold">User</TableHead>
-                <TableHead className="font-semibold">Role</TableHead>
-                <TableHead className="font-semibold">Company</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold">Items</TableHead>
-                <TableHead className="font-semibold">Locations</TableHead>
+                <TableHead className="font-semibold hidden sm:table-cell">Role</TableHead>
+                <TableHead className="font-semibold hidden md:table-cell">Company</TableHead>
+                <TableHead className="font-semibold hidden lg:table-cell">Status</TableHead>
+                <TableHead className="font-semibold hidden md:table-cell">Items</TableHead>
+                <TableHead className="font-semibold hidden lg:table-cell">Locations</TableHead>
                 <TableHead className="w-[70px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -158,9 +158,24 @@ export function UserDataTable({ users, onEdit, onRefresh }: UserDataTableProps) 
                         <Mail className="h-3 w-3" />
                         {user.email}
                       </div>
+                      <div className="flex gap-2 mt-2 sm:hidden">
+                        <Badge 
+                          variant={getRoleBadgeVariant(user.role)} 
+                          className="flex items-center gap-1 w-fit text-xs"
+                        >
+                          {getRoleIcon(user.role)}
+                          {user.role}
+                        </Badge>
+                        <Badge variant={user.isActive ? "default" : "secondary"} className="text-xs lg:hidden">
+                          {user.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 md:hidden">
+                        {user.company.name} • Items: {user._count.items} • Locations: {user._count.locations}
+                      </div>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <Badge 
                       variant={getRoleBadgeVariant(user.role)} 
                       className="flex items-center gap-1 w-fit"
@@ -169,22 +184,22 @@ export function UserDataTable({ users, onEdit, onRefresh }: UserDataTableProps) 
                       {user.role}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <span className="text-sm font-medium">
                       {user.company.name}
                     </span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden lg:table-cell">
                     <Badge variant={user.isActive ? "default" : "secondary"}>
                       {user.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <span className="text-sm font-medium">
                       {user._count.items}
                     </span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden lg:table-cell">
                     <span className="text-sm font-medium">
                       {user._count.locations}
                     </span>

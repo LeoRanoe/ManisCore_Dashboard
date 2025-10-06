@@ -117,10 +117,10 @@ export function LocationDataTable({ locations, onEdit, onRefresh }: LocationData
             <TableHeader>
               <TableRow className="bg-gray-50 dark:bg-gray-800">
                 <TableHead className="font-semibold">Location</TableHead>
-                <TableHead className="font-semibold">Company</TableHead>
-                <TableHead className="font-semibold">Manager</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold">Items</TableHead>
+                <TableHead className="font-semibold hidden md:table-cell">Company</TableHead>
+                <TableHead className="font-semibold hidden lg:table-cell">Manager</TableHead>
+                <TableHead className="font-semibold hidden sm:table-cell">Status</TableHead>
+                <TableHead className="font-semibold hidden md:table-cell">Items</TableHead>
                 <TableHead className="w-[70px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -145,9 +145,18 @@ export function LocationDataTable({ locations, onEdit, onRefresh }: LocationData
                           {location.description}
                         </div>
                       )}
+                      <div className="flex flex-wrap gap-2 mt-2 sm:hidden">
+                        <Badge variant={location.isActive ? "default" : "secondary"} className="text-xs">
+                          {location.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 md:hidden">
+                        {location.company.name} • Items: {location._count.items}
+                        {location.manager && ` • Manager: ${location.manager.name}`}
+                      </div>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4 text-gray-500" />
                       <span className="text-sm font-medium">
@@ -155,7 +164,7 @@ export function LocationDataTable({ locations, onEdit, onRefresh }: LocationData
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden lg:table-cell">
                     {location.manager ? (
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-gray-500" />
@@ -172,12 +181,12 @@ export function LocationDataTable({ locations, onEdit, onRefresh }: LocationData
                       <span className="text-sm text-gray-500">No manager assigned</span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <Badge variant={location.isActive ? "default" : "secondary"}>
                       {location.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <span className="text-sm font-medium">
                       {location._count.items}
                     </span>

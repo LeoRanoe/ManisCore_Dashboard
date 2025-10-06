@@ -137,19 +137,42 @@ export function ExpenseDataTable({
         <TableHeader>
           <TableRow>
             <TableHead>Description</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Company</TableHead>
-            <TableHead>Created By</TableHead>
-            <TableHead>Date</TableHead>
+            <TableHead className="hidden sm:table-cell">Amount</TableHead>
+            <TableHead className="hidden md:table-cell">Category</TableHead>
+            <TableHead className="hidden lg:table-cell">Company</TableHead>
+            <TableHead className="hidden lg:table-cell">Created By</TableHead>
+            <TableHead className="hidden md:table-cell">Date</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {expenses.map((expense) => (
             <TableRow key={expense.id}>
-              <TableCell className="font-medium">{expense.description}</TableCell>
-              <TableCell className="font-mono">
+              <TableCell className="font-medium">
+                <div className="flex flex-col">
+                  <span>{expense.description}</span>
+                  <div className="flex flex-wrap gap-2 mt-1 sm:hidden">
+                    <span className="font-mono text-sm font-semibold">
+                      {getCurrencySymbol(expense.currency)}{expense.amount.toFixed(2)} {expense.currency}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-1 md:hidden">
+                    <Badge 
+                      variant="secondary" 
+                      className={`text-xs ${categoryColors[expense.category] || categoryColors.MISCELLANEOUS}`}
+                    >
+                      {categoryLabels[expense.category] || expense.category}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground md:hidden">
+                      {format(new Date(expense.date), "MMM dd, yyyy")}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1 lg:hidden">
+                    {expense.company.name} • {expense.createdBy.name}
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell className="font-mono hidden sm:table-cell">
                 <span className="font-semibold">
                   {getCurrencySymbol(expense.currency)}{expense.amount.toFixed(2)}
                 </span>
@@ -157,7 +180,7 @@ export function ExpenseDataTable({
                   {expense.currency}
                 </span>
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden md:table-cell">
                 <Badge 
                   variant="secondary" 
                   className={categoryColors[expense.category] || categoryColors.MISCELLANEOUS}
@@ -165,14 +188,14 @@ export function ExpenseDataTable({
                   {categoryLabels[expense.category] || expense.category}
                 </Badge>
               </TableCell>
-              <TableCell>{expense.company.name}</TableCell>
-              <TableCell>
+              <TableCell className="hidden lg:table-cell">{expense.company.name}</TableCell>
+              <TableCell className="hidden lg:table-cell">
                 <div className="flex flex-col">
                   <span className="text-sm">{expense.createdBy.name}</span>
                   <span className="text-xs text-muted-foreground">{expense.createdBy.email}</span>
                 </div>
               </TableCell>
-              <TableCell>{format(new Date(expense.date), "MMM dd, yyyy")}</TableCell>
+              <TableCell className="hidden md:table-cell">{format(new Date(expense.date), "MMM dd, yyyy")}</TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
                   <ExpenseFormDialog

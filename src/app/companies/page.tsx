@@ -136,14 +136,14 @@ function CompaniesPage() {
     <div className="space-y-6 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Companies</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Portfolio Companies</h1>
           <p className="text-gray-500 dark:text-gray-400">
-            Manage companies and business entities
+            Manage your portfolio companies and business investments
           </p>
         </div>
         <Button onClick={() => setIsFormOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Company
+          Add Portfolio Company
         </Button>
       </div>
 
@@ -152,7 +152,7 @@ function CompaniesPage() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            placeholder="Search companies..."
+            placeholder="Search portfolio companies..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -172,14 +172,14 @@ function CompaniesPage() {
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Building2 className="h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-              No companies found
+              No portfolio companies found
             </h3>
             <p className="text-gray-500 dark:text-gray-400 mb-4">
-              Get started by adding your first company.
+              Get started by adding your first portfolio company.
             </p>
             <Button onClick={() => setIsFormOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Company
+              Add Portfolio Company
             </Button>
           </div>
         ) : (
@@ -187,11 +187,11 @@ function CompaniesPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50 dark:bg-gray-800">
-                  <TableHead className="font-semibold">Company Name</TableHead>
-                  <TableHead className="font-semibold">Created</TableHead>
-                  <TableHead className="font-semibold">Items</TableHead>
-                  <TableHead className="font-semibold">Users</TableHead>
-                  <TableHead className="font-semibold">Locations</TableHead>
+                  <TableHead className="font-semibold">Portfolio Company</TableHead>
+                  <TableHead className="font-semibold hidden sm:table-cell">Created</TableHead>
+                  <TableHead className="font-semibold hidden md:table-cell">Items</TableHead>
+                  <TableHead className="font-semibold hidden md:table-cell">Users</TableHead>
+                  <TableHead className="font-semibold hidden lg:table-cell">Locations</TableHead>
                   <TableHead className="w-[70px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -201,27 +201,37 @@ function CompaniesPage() {
                     <TableCell>
                       <div className="flex items-center">
                         <Building2 className="h-5 w-5 text-gray-500 mr-3" />
-                        <span className="font-medium text-gray-900 dark:text-gray-100">
-                          {company.name}
-                        </span>
+                        <div>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">
+                            {company.name}
+                          </span>
+                          <div className="text-xs text-muted-foreground sm:hidden mt-1">
+                            {new Date(company.createdAt).toLocaleDateString()}
+                          </div>
+                          <div className="flex gap-3 text-xs text-muted-foreground md:hidden mt-1">
+                            <span>Items: {company._count?.items ?? 0}</span>
+                            <span>Users: {company._count?.users ?? 0}</span>
+                            <span className="lg:hidden">Locations: {company._count?.locations ?? 0}</span>
+                          </div>
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <span className="text-sm text-gray-500">
                         {new Date(company.createdAt).toLocaleDateString()}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <span className="text-sm font-medium">
                         {company._count?.items ?? 0}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <span className="text-sm font-medium">
                         {company._count?.users ?? 0}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden lg:table-cell">
                       <span className="text-sm font-medium">
                         {company._count?.locations ?? 0}
                       </span>

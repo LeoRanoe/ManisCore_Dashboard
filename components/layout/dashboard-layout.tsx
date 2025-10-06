@@ -68,7 +68,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     },
     {
       href: '/companies',
-      label: 'Companies',
+      label: 'Portfolio',
       icon: Building2
     },
     {
@@ -102,7 +102,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center">
             <Package className="h-8 w-8 text-primary mr-3" />
-            <h1 className="text-xl font-bold text-foreground">ManisCor</h1>
+            <div className="flex flex-col">
+              <h1 className="text-xl font-bold text-foreground">ManisCore</h1>
+              <span className="text-xs text-muted-foreground">Business Management Platform</span>
+            </div>
           </div>
           {/* Mobile menu close button */}
           <Button 
@@ -119,17 +122,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="px-4 py-4 border-b border-border">
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Company
+              Select Portfolio Company
             </label>
             <Select value={selectedCompany} onValueChange={setSelectedCompany}>
               <SelectTrigger className="w-full">
                 <div className="flex items-center">
                   <Building2 className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <SelectValue placeholder="Select company" />
+                  <SelectValue placeholder="Select portfolio company" />
                 </div>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Companies</SelectItem>
+                <SelectItem value="all">All Portfolio Companies</SelectItem>
                 {companies.map((company) => (
                   <SelectItem key={company.id} value={company.id}>
                     {company.name}
@@ -194,7 +197,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               
               <div>
                 <h2 className="text-lg md:text-2xl font-semibold text-foreground">
-                  Stock Management
+                  Portfolio Management
                 </h2>
                 {selectedCompany !== "all" && (
                   <div className="hidden md:flex items-center text-sm text-muted-foreground">
