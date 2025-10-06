@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { SimpleItemDataTable } from "@/components/inventory/simple-item-data-table"
 import { ItemFormDialog } from "@/components/inventory/item-form-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useToast } from "@/components/ui/use-toast"
 import { useItems } from "@/lib/hooks"
 import { useCompany } from "../../../contexts/company-context"
 import Link from "next/link"
@@ -75,6 +76,7 @@ function InventoryPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Item | undefined>()
+  const { toast } = useToast()
   
   // Use dynamic hooks for automatic company filtering and error handling
   const { 
@@ -110,6 +112,34 @@ function InventoryPage() {
   const handleEdit = (item: Item) => {
     setEditingItem(item)
     setIsFormOpen(true)
+  }
+
+  const handleDelete = async (itemId: string) => {
+    try {
+      const response = await fetch(`/api/items/${itemId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete item')
+      }
+
+      // Refresh the items list
+      refreshItems()
+      
+      toast({
+        title: "Success",
+        description: "Item deleted successfully",
+      })
+    } catch (error) {
+      console.error('Error deleting item:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete item",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleCloseForm = () => {
@@ -329,6 +359,7 @@ function InventoryPage() {
         items={items}
         onSort={handleSort}
         onEdit={handleEdit}
+        onDelete={handleDelete}
       />
 
       <ItemFormDialog

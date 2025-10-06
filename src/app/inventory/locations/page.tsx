@@ -115,19 +115,29 @@ function LocationManagementPage() {
         ? `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Moved to ${targetLocation?.name}`.trim()
         : `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Removed from location`.trim()
 
-      // Send all required fields for the item update
-      const updateData = {
+      // Send all required fields for the item update - only include fields that have values
+      const updateData: any = {
         name: selectedItem.name,
         status: selectedItem.status,
         quantityInStock: selectedItem.quantityInStock,
         costPerUnitUSD: selectedItem.costPerUnitUSD,
         freightCostUSD: selectedItem.freightCostUSD,
         sellingPriceSRD: selectedItem.sellingPriceSRD,
-        notes: newNotes,
         companyId: selectedItem.companyId,
-        assignedUserId: selectedItem.assignedUserId || undefined,
-        locationId: targetLocationId || undefined,
       }
+
+      // Only add optional fields if they have values
+      if (newNotes && newNotes.trim().length > 0) {
+        updateData.notes = newNotes.trim()
+      }
+      if (selectedItem.assignedUserId) {
+        updateData.assignedUserId = selectedItem.assignedUserId
+      }
+      if (targetLocationId) {
+        updateData.locationId = targetLocationId
+      }
+
+      console.log('Sending move update:', updateData)
 
       const response = await fetch(`/api/items/${selectedItem.id}`, {
         method: "PUT",
