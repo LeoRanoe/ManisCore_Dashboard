@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Represents a company or business entity
+model Company {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  items Item[] // A company can have many items
+
+  @@map("companies")
+}
+
+enum Status {
+  ToOrder
+  Ordered
+  Arrived
+  Sold
+}
+
+// Represents one item in the inventory, linked to a company
+model Item {
+  id                String   @id @default(cuid())
+  name              String
+  status            Status   @default(ToOrder)
+  quantityInStock   Int      @default(0)
+  costPerUnitUSD    Float
+  freightPerUnitUSD Float    @default(0)
+  sellingPriceSRD   Float
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("items")
+}
