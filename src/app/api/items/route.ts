@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       // Freight cost is now total per order, so divide by quantity for per-unit cost
       const freightPerUnitUSD = item.quantityInStock > 0 ? item.freightCostUSD / item.quantityInStock : 0
       const totalCostPerUnitUSD = item.costPerUnitUSD + freightPerUnitUSD
-      const usdToSrdRate = 3.75 // Approximate exchange rate
+      const usdToSrdRate = 40 // Approximate exchange rate
       const totalCostPerUnitSRD = totalCostPerUnitUSD * usdToSrdRate
       const profitPerUnitSRD = item.sellingPriceSRD - totalCostPerUnitSRD
       const totalProfitSRD = profitPerUnitSRD * item.quantityInStock

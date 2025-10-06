@@ -160,7 +160,7 @@ function InventoryPage() {
   const inventoryMetrics = items.reduce((acc, item) => {
     const freightPerUnitUSD = item.quantityInStock > 0 ? item.freightCostUSD / item.quantityInStock : 0
     const totalCostPerUnitUSD = item.costPerUnitUSD + freightPerUnitUSD
-    const usdToSrdRate = 3.75
+    const usdToSrdRate = 40
     const totalCostPerUnitSRD = totalCostPerUnitUSD * usdToSrdRate
     const profitPerUnitSRD = item.sellingPriceSRD - totalCostPerUnitSRD
     const totalProfitSRD = profitPerUnitSRD * item.quantityInStock

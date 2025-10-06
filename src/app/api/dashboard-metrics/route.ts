@@ -58,8 +58,8 @@ export async function GET(request: NextRequest) {
       return total + item.sellingPriceSRD * item.quantityInStock
     }, 0)
 
-    // Calculate total potential profit in SRD (approximation - assuming 1 USD = 3.75 SRD for conversion)
-    const usdToSrdRate = 3.75
+    // Calculate total potential profit in SRD (approximation - assuming 1 USD = 40 SRD for conversion)
+    const usdToSrdRate = 40
     const totalCostInSRD = totalStockValueUSD * usdToSrdRate
     const totalPotentialProfitSRD = totalPotentialRevenueSRD - totalCostInSRD
 

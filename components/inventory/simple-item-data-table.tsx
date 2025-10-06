@@ -147,7 +147,7 @@ export function SimpleItemDataTable({
         </TableHeader>
         <TableBody>
           {items.map((item) => {
-            const profitPerUnit = item.sellingPriceSRD - (item.costPerUnitUSD + (item.freightCostUSD / Math.max(item.quantityInStock, 1))) * 3.75
+            const profitPerUnit = item.sellingPriceSRD - (item.costPerUnitUSD + (item.freightCostUSD / Math.max(item.quantityInStock, 1))) * 40
             
             return (
               <TableRow key={item.id}>
