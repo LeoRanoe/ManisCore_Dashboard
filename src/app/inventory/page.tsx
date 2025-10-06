@@ -196,148 +196,150 @@ function InventoryPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Inventory Overview</h1>
-          <p className="text-muted-foreground">
-            View your inventory items and basic metrics. Use quick actions to access detailed management.
-          </p>
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Inventory Overview</h1>
+            <p className="text-muted-foreground">
+              View your inventory items and basic metrics. Use quick actions to access detailed management.
+            </p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button onClick={() => setIsFormOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Add Item
+            </Button>
+            <Link href="/inventory/stock">
+              <Button variant="outline">
+                <Package2 className="mr-2 h-4 w-4" /> Manage Stock
+              </Button>
+            </Link>
+            <Link href="/inventory/locations">
+              <Button variant="outline">
+                <MapPin className="mr-2 h-4 w-4" /> Locations
+              </Button>
+            </Link>
+            <Link href="/inventory/orders">
+              <Button variant="outline">
+                <ShoppingCart className="mr-2 h-4 w-4" /> Orders
+              </Button>
+            </Link>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button onClick={() => setIsFormOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Add Item
-          </Button>
-          <Link href="/inventory/stock">
-            <Button variant="outline">
-              <Package2 className="mr-2 h-4 w-4" /> Manage Stock
-            </Button>
-          </Link>
-          <Link href="/inventory/locations">
-            <Button variant="outline">
-              <MapPin className="mr-2 h-4 w-4" /> Locations
-            </Button>
-          </Link>
-          <Link href="/inventory/orders">
-            <Button variant="outline">
-              <ShoppingCart className="mr-2 h-4 w-4" /> Orders
-            </Button>
-          </Link>
+
+        {/* Inventory Metrics Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Items</CardTitle>
+              <Package2 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{inventoryMetrics.totalItems}</div>
+              <p className="text-xs text-muted-foreground">
+                Items in inventory
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">SRD {inventoryMetrics.totalValueSRD.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">
+                At selling price
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">SRD {inventoryMetrics.totalCostSRD.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">
+                Including freight
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Profit</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${inventoryMetrics.totalProfitSRD >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                SRD {inventoryMetrics.totalProfitSRD.toFixed(2)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {profitMargin.toFixed(1)}% margin
+              </p>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Simplified Filters */}
+        <div className="space-y-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search items by name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          {/* Basic Filters */}
+          <div className="flex gap-3 flex-wrap">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="ToOrder">To Order</SelectItem>
+                <SelectItem value="Ordered">Ordered</SelectItem>
+                <SelectItem value="Arrived">Arrived</SelectItem>
+                <SelectItem value="Sold">Sold</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {hasActiveFilters && (
+              <Button 
+                variant="outline" 
+                onClick={clearFilters} 
+                className="gap-2"
+              >
+                <X className="h-4 w-4" />
+                Clear Filters
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <SimpleItemDataTable 
+          items={items} 
+          onSort={handleSort}
+          onEdit={handleEdit}
+        />
+
+        <ItemFormDialog
+          isOpen={isFormOpen}
+          onClose={handleCloseForm}
+          item={editingItem}
+          companies={companies || []}
+          onSuccess={() => {
+            handleCloseForm()
+            refreshItems()
+          }}
+        />
       </div>
-
-      {/* Inventory Metrics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Items</CardTitle>
-            <Package2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{inventoryMetrics.totalItems}</div>
-            <p className="text-xs text-muted-foreground">
-              Items in inventory
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">SRD {inventoryMetrics.totalValueSRD.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
-              At selling price
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">SRD {inventoryMetrics.totalCostSRD.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
-              Including freight
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Profit</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${inventoryMetrics.totalProfitSRD >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              SRD {inventoryMetrics.totalProfitSRD.toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {profitMargin.toFixed(1)}% margin
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Simplified Filters */}
-      <div className="space-y-4">
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search items by name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        {/* Basic Filters */}
-        <div className="flex gap-3 flex-wrap">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="ToOrder">To Order</SelectItem>
-              <SelectItem value="Ordered">Ordered</SelectItem>
-              <SelectItem value="Arrived">Arrived</SelectItem>
-              <SelectItem value="Sold">Sold</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {hasActiveFilters && (
-            <Button 
-              variant="outline" 
-              onClick={clearFilters} 
-              className="gap-2"
-            >
-              <X className="h-4 w-4" />
-              Clear Filters
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <SimpleItemDataTable 
-        items={items} 
-        onSort={handleSort}
-        onEdit={handleEdit}
-      />
-
-      <ItemFormDialog
-        isOpen={isFormOpen}
-        onClose={handleCloseForm}
-        item={editingItem}
-        companies={companies || []}
-        onSuccess={() => {
-          handleCloseForm()
-          refreshItems()
-        }}
-      />
-    </div>
+    </DashboardLayout>
   )
 }
 

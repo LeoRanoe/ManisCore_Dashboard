@@ -225,149 +225,144 @@ function LocationManagementPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/inventory">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Inventory
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Location Management</h1>
-            <p className="text-muted-foreground">
-              Manage item locations and track inventory across different storage areas.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex gap-4 flex-wrap">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search items..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select value={locationFilter} onValueChange={setLocationFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="All Locations" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Locations</SelectItem>
-            <SelectItem value="unassigned">Unassigned</SelectItem>
-            {locations.map((location) => (
-              <SelectItem key={location.id} value={location.id}>
-                {location.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Location Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredLocations.map(([locationId, locationData]: [string, { name: string; items: Item[] }]) => {
-          const totalUnits = locationData.items.reduce((sum: number, item: Item) => sum + item.quantityInStock, 0)
-          
-          return (
-            <Card key={locationId}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-base font-medium">{locationData.name}</CardTitle>
-                <MapPin className="h-5 w-5 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{locationData.items.length} <span className="text-sm font-normal text-muted-foreground">item types</span></div>
-                <p className="text-xs text-muted-foreground">
-                  {totalUnits} total units
-                </p>
-                <Table className="mt-4">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Item</TableHead>
-                      <TableHead>Stock</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {locationData.items.map((item: Item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell>{item.quantityInStock}</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="outline" size="sm" onClick={() => openMoveDialog(item)}>
-                            <Move className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-
-      <Dialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Move Item: {selectedItem?.name}</DialogTitle>
-            <DialogDescription>
-              Select a new location for this item.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="location" className="text-right">
-                New Location
-              </Label>
-              <div className="col-span-3">
-                <Select
-                  value={targetLocationId}
-                  onValueChange={setTargetLocationId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">
-                      <span className="text-muted-foreground">Remove from location</span>
-                    </SelectItem>
-                    {locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id}>
-                        {location.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/inventory">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Inventory
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Location Management</h1>
+              <p className="text-muted-foreground">
+                Manage item locations and track inventory across different storage areas.
+              </p>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeMoveDialog} disabled={processing}>
-              Cancel
-            </Button>
-            <Button onClick={handleMoveItem} disabled={processing}>
-              {processing ? "Moving..." : "Confirm Move"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
-}
+        </div>
 
-// Wrap with DashboardLayout
-export default function LocationManagementPageWithLayout() {
-  return (
-    <DashboardLayout>
-      <LocationManagementPage />
+        {/* Filters */}
+        <div className="flex gap-4 flex-wrap">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search items..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={locationFilter} onValueChange={setLocationFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="All Locations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {locations.map((location) => (
+                <SelectItem key={location.id} value={location.id}>
+                  {location.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Location Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredLocations.map(([locationId, locationData]: [string, { name: string; items: Item[] }]) => {
+            const totalUnits = locationData.items.reduce((sum: number, item: Item) => sum + item.quantityInStock, 0)
+            
+            return (
+              <Card key={locationId}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-base font-medium">{locationData.name}</CardTitle>
+                  <MapPin className="h-5 w-5 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{locationData.items.length} <span className="text-sm font-normal text-muted-foreground">item types</span></div>
+                  <p className="text-xs text-muted-foreground">
+                    {totalUnits} total units
+                  </p>
+                  <Table className="mt-4">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item</TableHead>
+                        <TableHead>Stock</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {locationData.items.map((item: Item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.name}</TableCell>
+                          <TableCell>{item.quantityInStock}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="outline" size="sm" onClick={() => openMoveDialog(item)}>
+                              <Move className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+
+        <Dialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Move Item: {selectedItem?.name}</DialogTitle>
+              <DialogDescription>
+                Select a new location for this item.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="location" className="text-right">
+                  New Location
+                </Label>
+                <div className="col-span-3">
+                  <Select
+                    value={targetLocationId}
+                    onValueChange={setTargetLocationId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">
+                        <span className="text-muted-foreground">Remove from location</span>
+                      </SelectItem>
+                      {locations.map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={closeMoveDialog} disabled={processing}>
+                Cancel
+              </Button>
+              <Button onClick={handleMoveItem} disabled={processing}>
+                {processing ? "Moving..." : "Confirm Move"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </DashboardLayout>
   )
 }
+
+export default LocationManagementPage
