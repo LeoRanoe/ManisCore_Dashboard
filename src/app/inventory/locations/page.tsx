@@ -117,7 +117,9 @@ function LocationManagementPage() {
 
     setProcessing(true)
     try {
-      const targetLocation = locations.find(l => l.id === targetLocationId)
+      // Get actual locationId (convert "unassigned" to undefined)
+      const actualLocationId = targetLocationId === "unassigned" ? undefined : targetLocationId
+      const targetLocation = actualLocationId ? locations.find(l => l.id === actualLocationId) : null
       
       // Helper function to safely get string value
       const getStringValue = (value: string | null | undefined): string | undefined => {
@@ -136,7 +138,7 @@ function LocationManagementPage() {
 
       // Build notes with move history
       const existingNotes = getStringValue(selectedItem.notes) || ""
-      const moveNote = targetLocationId 
+      const moveNote = actualLocationId 
         ? `[${new Date().toLocaleDateString()}] Moved to ${targetLocation?.name}`
         : `[${new Date().toLocaleDateString()}] Removed from location`
       const newNotes = existingNotes 
@@ -175,7 +177,7 @@ function LocationManagementPage() {
       if (assignedUserId) updateData.assignedUserId = assignedUserId
 
       // Add location (can be undefined to remove location)
-      const locationId = getStringValue(targetLocationId)
+      const locationId = getStringValue(actualLocationId)
       if (locationId) updateData.locationId = locationId
 
       // Add optional number fields
@@ -186,7 +188,7 @@ function LocationManagementPage() {
       if (minStock !== undefined) updateData.minStockLevel = minStock
 
       console.log('📦 Moving item:', selectedItem.name)
-      console.log('🎯 Target location:', targetLocationId || 'Unassigned')
+      console.log('🎯 Target location:', actualLocationId || 'Unassigned')
       console.log('📝 Update data:', JSON.stringify(updateData, null, 2))
 
       const response = await fetch(`/api/items/${selectedItem.id}`, {
@@ -206,7 +208,7 @@ function LocationManagementPage() {
 
       toast({
         title: "Success",
-        description: targetLocationId 
+        description: actualLocationId 
           ? `Item moved to ${targetLocation?.name}`
           : "Item removed from location",
       })
@@ -228,13 +230,13 @@ function LocationManagementPage() {
 
   const openMoveDialog = (item: Item) => {
     setSelectedItem(item)
-    setTargetLocationId(item.locationId || "")
+    setTargetLocationId(item.locationId || "unassigned")
     setMoveDialogOpen(true)
   }
 
   const closeMoveDialog = () => {
     setSelectedItem(null)
-    setTargetLocationId("")
+    setTargetLocationId("unassigned")
     setMoveDialogOpen(false)
   }
 
@@ -434,12 +436,12 @@ function LocationManagementPage() {
           <div className="space-y-4">
             <div>
               <Label htmlFor="location">Target Location</Label>
-              <Select value={targetLocationId} onValueChange={setTargetLocationId}>
+              <Select value={targetLocationId || "unassigned"} onValueChange={(val) => setTargetLocationId(val === "unassigned" ? "" : val)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select location or leave unassigned" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Location (Unassigned)</SelectItem>
+                  <SelectItem value="unassigned">No Location (Unassigned)</SelectItem>
                   {locations.map((location) => (
                     <SelectItem key={location.id} value={location.id}>
                       {location.name}
