@@ -120,17 +120,43 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    console.log('Received item creation request:', JSON.stringify(body, null, 2))
+    
     const validation = ItemFormSchema.safeParse(body)
 
     if (!validation.success) {
+      console.error('Validation failed:', validation.error.issues)
       return NextResponse.json({ error: 'Invalid item data', details: validation.error.issues }, { status: 400 })
     }
 
     const data = validation.data
 
+    // Clean up the data - remove null/undefined optional fields
+    const cleanedData: any = {
+      name: data.name,
+      status: data.status,
+      quantityInStock: data.quantityInStock,
+      costPerUnitUSD: data.costPerUnitUSD,
+      freightCostUSD: data.freightCostUSD,
+      sellingPriceSRD: data.sellingPriceSRD,
+      companyId: data.companyId,
+    }
+
+    // Only add optional fields if they have values
+    if (data.supplier) cleanedData.supplier = data.supplier
+    if (data.supplierSku) cleanedData.supplierSku = data.supplierSku
+    if (data.orderDate) cleanedData.orderDate = new Date(data.orderDate)
+    if (data.expectedArrival) cleanedData.expectedArrival = new Date(data.expectedArrival)
+    if (data.orderNumber) cleanedData.orderNumber = data.orderNumber
+    if (data.profitMarginPercent !== null && data.profitMarginPercent !== undefined) cleanedData.profitMarginPercent = data.profitMarginPercent
+    if (data.minStockLevel !== null && data.minStockLevel !== undefined) cleanedData.minStockLevel = data.minStockLevel
+    if (data.notes) cleanedData.notes = data.notes
+    if (data.assignedUserId) cleanedData.assignedUserId = data.assignedUserId
+    if (data.locationId) cleanedData.locationId = data.locationId
+
     // Check if item is being ordered and we need to deduct cash
     if (data.status === 'Ordered') {
-      const company = await (prisma as any).company.findUnique({
+      const company = await prisma.company.findUnique({
         where: { id: data.companyId },
         select: {
           id: true,
@@ -160,7 +186,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Deduct the cost from company's USD balance
-      await (prisma as any).company.update({
+      await prisma.company.update({
         where: { id: data.companyId },
         data: {
           cashBalanceUSD: company.cashBalanceUSD - totalOrderCostUSD,
@@ -168,8 +194,10 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const item = await (prisma as any).item.create({
-      data,
+    console.log('Creating item with data:', JSON.stringify(cleanedData, null, 2))
+
+    const item = await prisma.item.create({
+      data: cleanedData,
       include: {
         company: {
           select: {
@@ -193,9 +221,14 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    console.log('Item created successfully:', item.id)
     return NextResponse.json(item, { status: 201 })
   } catch (error) {
     console.error('Error creating item:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Internal server error', 
+      message: error instanceof Error ? error.message : 'Unknown error',
+      details: error instanceof Error ? error.stack : undefined
+    }, { status: 500 })
   }
 }

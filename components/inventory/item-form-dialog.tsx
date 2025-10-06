@@ -222,12 +222,25 @@ export function ItemFormDialog({
   const onSubmit = async (data: ItemFormData) => {
     setIsSubmitting(true)
     try {
-      // Clean up empty optional fields
+      // Clean up empty optional fields - convert empty strings to undefined
       const cleanData = {
-        ...data,
-        notes: data.notes || undefined,
-        assignedUserId: data.assignedUserId && data.assignedUserId !== "none" ? data.assignedUserId : undefined,
-        locationId: data.locationId && data.locationId !== "none" ? data.locationId : undefined,
+        name: data.name,
+        status: data.status,
+        quantityInStock: data.quantityInStock,
+        costPerUnitUSD: data.costPerUnitUSD,
+        freightCostUSD: data.freightCostUSD,
+        sellingPriceSRD: data.sellingPriceSRD,
+        companyId: data.companyId,
+        supplier: data.supplier && data.supplier.trim() !== "" ? data.supplier : undefined,
+        supplierSku: data.supplierSku && data.supplierSku.trim() !== "" ? data.supplierSku : undefined,
+        orderDate: data.orderDate && data.orderDate.trim() !== "" ? data.orderDate : undefined,
+        expectedArrival: data.expectedArrival && data.expectedArrival.trim() !== "" ? data.expectedArrival : undefined,
+        orderNumber: data.orderNumber && data.orderNumber.trim() !== "" ? data.orderNumber : undefined,
+        profitMarginPercent: data.profitMarginPercent || undefined,
+        minStockLevel: data.minStockLevel || undefined,
+        notes: data.notes && data.notes.trim() !== "" ? data.notes : undefined,
+        assignedUserId: data.assignedUserId && data.assignedUserId !== "none" && data.assignedUserId.trim() !== "" ? data.assignedUserId : undefined,
+        locationId: data.locationId && data.locationId !== "none" && data.locationId.trim() !== "" ? data.locationId : undefined,
       }
 
       const url = item ? `/api/items/${item.id}` : "/api/items"
@@ -243,7 +256,7 @@ export function ItemFormDialog({
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to save item")
+        throw new Error(errorData.error || errorData.message || "Failed to save item")
       }
 
       toast({
