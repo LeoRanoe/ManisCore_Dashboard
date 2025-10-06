@@ -44,10 +44,17 @@ interface Item {
   costPerUnitUSD: number
   freightCostUSD: number
   sellingPriceSRD: number
-  notes?: string
+  supplier?: string | null
+  supplierSku?: string | null
+  orderDate?: string | null
+  expectedArrival?: string | null
+  orderNumber?: string | null
+  profitMarginPercent?: number | null
+  minStockLevel?: number | null
+  notes?: string | null
   companyId: string
-  assignedUserId?: string
-  locationId?: string
+  assignedUserId?: string | null
+  locationId?: string | null
   company: {
     id: string
     name: string
@@ -115,7 +122,7 @@ function LocationManagementPage() {
         ? `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Moved to ${targetLocation?.name}`.trim()
         : `${selectedItem.notes || ""}\n[${new Date().toLocaleDateString()}] Removed from location`.trim()
 
-      // Send all required fields for the item update - only include fields that have values
+      // Include ALL fields from the item to preserve data
       const updateData: any = {
         name: selectedItem.name,
         status: selectedItem.status,
@@ -126,18 +133,39 @@ function LocationManagementPage() {
         companyId: selectedItem.companyId,
       }
 
-      // Only add optional fields if they have values
+      // Add optional fields only if they have valid values (not null, undefined, or empty string)
+      if (selectedItem.supplier && selectedItem.supplier.trim().length > 0) {
+        updateData.supplier = selectedItem.supplier.trim()
+      }
+      if (selectedItem.supplierSku && selectedItem.supplierSku.trim().length > 0) {
+        updateData.supplierSku = selectedItem.supplierSku.trim()
+      }
+      if (selectedItem.orderDate && selectedItem.orderDate.trim().length > 0) {
+        updateData.orderDate = selectedItem.orderDate.trim()
+      }
+      if (selectedItem.expectedArrival && selectedItem.expectedArrival.trim().length > 0) {
+        updateData.expectedArrival = selectedItem.expectedArrival.trim()
+      }
+      if (selectedItem.orderNumber && selectedItem.orderNumber.trim().length > 0) {
+        updateData.orderNumber = selectedItem.orderNumber.trim()
+      }
+      if (selectedItem.profitMarginPercent !== null && selectedItem.profitMarginPercent !== undefined) {
+        updateData.profitMarginPercent = selectedItem.profitMarginPercent
+      }
+      if (selectedItem.minStockLevel !== null && selectedItem.minStockLevel !== undefined) {
+        updateData.minStockLevel = selectedItem.minStockLevel
+      }
       if (newNotes && newNotes.trim().length > 0) {
         updateData.notes = newNotes.trim()
       }
-      if (selectedItem.assignedUserId) {
-        updateData.assignedUserId = selectedItem.assignedUserId
+      if (selectedItem.assignedUserId && selectedItem.assignedUserId.trim().length > 0) {
+        updateData.assignedUserId = selectedItem.assignedUserId.trim()
       }
-      if (targetLocationId) {
-        updateData.locationId = targetLocationId
+      if (targetLocationId && targetLocationId.trim().length > 0) {
+        updateData.locationId = targetLocationId.trim()
       }
 
-      console.log('Sending move update:', updateData)
+      console.log('Sending move update:', JSON.stringify(updateData, null, 2))
 
       const response = await fetch(`/api/items/${selectedItem.id}`, {
         method: "PUT",
