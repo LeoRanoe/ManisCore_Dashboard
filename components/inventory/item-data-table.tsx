@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -86,7 +88,15 @@ export function ItemDataTable({
   onRefresh,
 }: ItemDataTableProps) {
   const [deleteDialogItem, setDeleteDialogItem] = useState<Item | null>(null)
+  const [sellDialogItem, setSellDialogItem] = useState<Item | null>(null)
+  const [removeDialogItem, setRemoveDialogItem] = useState<Item | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isSelling, setIsSelling] = useState(false)
+  const [isRemoving, setIsRemoving] = useState(false)
+  const [sellQuantity, setSellQuantity] = useState(1)
+  const [sellPrice, setSellPrice] = useState(0)
+  const [removeQuantity, setRemoveQuantity] = useState(1)
+  const [removeReason, setRemoveReason] = useState("")
   const { toast } = useToast()
 
   const handleDelete = async (item: Item) => {
@@ -116,6 +126,104 @@ export function ItemDataTable({
     } finally {
       setIsDeleting(false)
     }
+  }
+
+  const handleSell = async (item: Item) => {
+    setIsSelling(true)
+    try {
+      const response = await fetch('/api/inventory/actions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'sell',
+          itemId: item.id,
+          quantityToSell: sellQuantity,
+          sellingPriceSRD: sellPrice || item.sellingPriceSRD,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to sell item")
+      }
+
+      const result = await response.json()
+
+      toast({
+        title: "Success",
+        description: `Successfully sold ${sellQuantity}x ${item.name}. Revenue: SRD ${result.sale.totalRevenue.toFixed(2)}`,
+      })
+
+      setSellDialogItem(null)
+      setSellQuantity(1)
+      setSellPrice(0)
+      onRefresh()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to sell item. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSelling(false)
+    }
+  }
+
+  const handleRemove = async (item: Item) => {
+    setIsRemoving(true)
+    try {
+      const response = await fetch('/api/inventory/actions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'remove',
+          itemId: item.id,
+          quantityToRemove: removeQuantity,
+          reason: removeReason,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to remove item from stock")
+      }
+
+      const result = await response.json()
+
+      toast({
+        title: "Success",
+        description: `Successfully removed ${removeQuantity}x ${item.name} from stock. Cost allocated to profit: SRD ${result.removal.costAllocatedToProfit.toFixed(2)}`,
+      })
+
+      setRemoveDialogItem(null)
+      setRemoveQuantity(1)
+      setRemoveReason("")
+      onRefresh()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to remove item from stock. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsRemoving(false)
+    }
+  }
+
+  const openSellDialog = (item: Item) => {
+    setSellDialogItem(item)
+    setSellQuantity(Math.min(1, item.quantityInStock))
+    setSellPrice(item.sellingPriceSRD)
+  }
+
+  const openRemoveDialog = (item: Item) => {
+    setRemoveDialogItem(item)
+    setRemoveQuantity(Math.min(1, item.quantityInStock))
+    setRemoveReason("")
   }
 
   const SortableHeader = ({ field, children }: { field: string; children: React.ReactNode }) => (
@@ -272,6 +380,18 @@ export function ItemDataTable({
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
+                          {item.quantityInStock > 0 && (
+                            <>
+                              <DropdownMenuItem onClick={() => openSellDialog(item)}>
+                                <ShoppingCart className="mr-2 h-4 w-4" />
+                                Sell
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openRemoveDialog(item)}>
+                                <Package2 className="mr-2 h-4 w-4" />
+                                Remove from Stock
+                              </DropdownMenuItem>
+                            </>
+                          )}
                           <DropdownMenuItem
                             onClick={() => setDeleteDialogItem(item)}
                             className="text-red-600"
@@ -310,6 +430,124 @@ export function ItemDataTable({
               className="bg-red-600 hover:bg-red-700"
             >
               {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Sell Dialog */}
+      <AlertDialog
+        open={!!sellDialogItem}
+        onOpenChange={() => setSellDialogItem(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sell Item</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sell "{sellDialogItem?.name}" from inventory. This will update your cash balance and create a sale record.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="sellQuantity" className="text-right">
+                Quantity
+              </Label>
+              <Input
+                id="sellQuantity"
+                type="number"
+                min="1"
+                max={sellDialogItem?.quantityInStock || 1}
+                value={sellQuantity}
+                onChange={(e) => setSellQuantity(parseInt(e.target.value) || 1)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="sellPrice" className="text-right">
+                Price (SRD)
+              </Label>
+              <Input
+                id="sellPrice"
+                type="number"
+                min="0"
+                step="0.01"
+                value={sellPrice}
+                onChange={(e) => setSellPrice(parseFloat(e.target.value) || 0)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Available stock: {sellDialogItem?.quantityInStock}
+              <br />
+              Total revenue: SRD {((sellPrice || sellDialogItem?.sellingPriceSRD || 0) * sellQuantity).toFixed(2)}
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => sellDialogItem && handleSell(sellDialogItem)}
+              disabled={isSelling || sellQuantity <= 0 || sellQuantity > (sellDialogItem?.quantityInStock || 0)}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isSelling ? "Selling..." : "Sell"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Remove from Stock Dialog */}
+      <AlertDialog
+        open={!!removeDialogItem}
+        onOpenChange={() => setRemoveDialogItem(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove from Stock</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove "{removeDialogItem?.name}" from inventory. The cost will be allocated to profit.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="removeQuantity" className="text-right">
+                Quantity
+              </Label>
+              <Input
+                id="removeQuantity"
+                type="number"
+                min="1"
+                max={removeDialogItem?.quantityInStock || 1}
+                value={removeQuantity}
+                onChange={(e) => setRemoveQuantity(parseInt(e.target.value) || 1)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="removeReason" className="text-right">
+                Reason
+              </Label>
+              <Input
+                id="removeReason"
+                placeholder="Optional reason for removal"
+                value={removeReason}
+                onChange={(e) => setRemoveReason(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Available stock: {removeDialogItem?.quantityInStock}
+              <br />
+              Cost to allocate: SRD {(((removeDialogItem?.costPerUnitUSD || 0) * 5.5) * removeQuantity).toFixed(2)}
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => removeDialogItem && handleRemove(removeDialogItem)}
+              disabled={isRemoving || removeQuantity <= 0 || removeQuantity > (removeDialogItem?.quantityInStock || 0)}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {isRemoving ? "Removing..." : "Remove"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
