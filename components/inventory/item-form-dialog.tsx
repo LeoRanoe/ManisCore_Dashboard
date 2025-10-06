@@ -397,7 +397,7 @@ export function ItemFormDialog({
             <div className="space-y-2">
               <Label htmlFor="assignedUserId">Assigned User</Label>
               <Select
-                value={watch("assignedUserId")}
+                value={watch("assignedUserId") || ""}
                 onValueChange={(value) => setValue("assignedUserId", value)}
                 disabled={!watchedCompanyId}
               >
@@ -421,7 +421,7 @@ export function ItemFormDialog({
             <div className="space-y-2">
               <Label htmlFor="locationId">Location</Label>
               <Select
-                value={watch("locationId")}
+                value={watch("locationId") || ""}
                 onValueChange={(value) => setValue("locationId", value)}
                 disabled={!watchedCompanyId}
               >
