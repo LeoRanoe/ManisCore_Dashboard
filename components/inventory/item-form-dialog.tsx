@@ -222,7 +222,15 @@ export function ItemFormDialog({
   const onSubmit = async (data: ItemFormData) => {
     setIsSubmitting(true)
     try {
-      console.log('Form data before cleaning:', data)
+      console.log('📝 Form data before cleaning:', data)
+      console.log('📝 Date fields:', { 
+        orderDate: data.orderDate, 
+        orderDateType: typeof data.orderDate,
+        orderDateLength: data.orderDate?.length,
+        expectedArrival: data.expectedArrival,
+        expectedArrivalType: typeof data.expectedArrival,
+        expectedArrivalLength: data.expectedArrival?.length
+      })
       
       // Clean up empty optional fields - convert empty strings to undefined
       const cleanData: any = {
@@ -236,30 +244,54 @@ export function ItemFormDialog({
       }
       
       // Only add optional string fields if they have meaningful values
-      if (data.supplier && data.supplier.trim() !== "") cleanData.supplier = data.supplier.trim()
-      if (data.supplierSku && data.supplierSku.trim() !== "") cleanData.supplierSku = data.supplierSku.trim()
-      if (data.orderDate && data.orderDate.trim() !== "") cleanData.orderDate = data.orderDate.trim()
-      if (data.expectedArrival && data.expectedArrival.trim() !== "") cleanData.expectedArrival = data.expectedArrival.trim()
-      if (data.orderNumber && data.orderNumber.trim() !== "") cleanData.orderNumber = data.orderNumber.trim()
-      if (data.notes && data.notes.trim() !== "") cleanData.notes = data.notes.trim()
+      // CRITICAL: Check both null/undefined AND empty string
+      if (data.supplier && typeof data.supplier === 'string' && data.supplier.trim().length > 0) {
+        cleanData.supplier = data.supplier.trim()
+      }
+      if (data.supplierSku && typeof data.supplierSku === 'string' && data.supplierSku.trim().length > 0) {
+        cleanData.supplierSku = data.supplierSku.trim()
+      }
       
-      // Handle numeric optional fields properly (0 is a valid value)
-      if (data.profitMarginPercent !== null && data.profitMarginPercent !== undefined && data.profitMarginPercent !== 0) {
+      // DATE FIELDS: Only add if they are non-empty strings
+      // This is the critical fix - don't send empty date strings!
+      if (data.orderDate && typeof data.orderDate === 'string' && data.orderDate.trim().length > 0) {
+        cleanData.orderDate = data.orderDate.trim()
+        console.log('✅ Including orderDate:', cleanData.orderDate)
+      } else {
+        console.log('⏭️  Skipping empty orderDate')
+      }
+      
+      if (data.expectedArrival && typeof data.expectedArrival === 'string' && data.expectedArrival.trim().length > 0) {
+        cleanData.expectedArrival = data.expectedArrival.trim()
+        console.log('✅ Including expectedArrival:', cleanData.expectedArrival)
+      } else {
+        console.log('⏭️  Skipping empty expectedArrival')
+      }
+      
+      if (data.orderNumber && typeof data.orderNumber === 'string' && data.orderNumber.trim().length > 0) {
+        cleanData.orderNumber = data.orderNumber.trim()
+      }
+      if (data.notes && typeof data.notes === 'string' && data.notes.trim().length > 0) {
+        cleanData.notes = data.notes.trim()
+      }
+      
+      // Handle numeric optional fields properly (0 is a valid value, so we check for null/undefined only)
+      if (data.profitMarginPercent !== null && data.profitMarginPercent !== undefined) {
         cleanData.profitMarginPercent = data.profitMarginPercent
       }
-      if (data.minStockLevel !== null && data.minStockLevel !== undefined && data.minStockLevel !== 0) {
+      if (data.minStockLevel !== null && data.minStockLevel !== undefined) {
         cleanData.minStockLevel = data.minStockLevel
       }
       
       // Handle user and location assignments
-      if (data.assignedUserId && data.assignedUserId !== "none" && data.assignedUserId.trim() !== "") {
+      if (data.assignedUserId && data.assignedUserId !== "none" && typeof data.assignedUserId === 'string' && data.assignedUserId.trim().length > 0) {
         cleanData.assignedUserId = data.assignedUserId.trim()
       }
-      if (data.locationId && data.locationId !== "none" && data.locationId.trim() !== "") {
+      if (data.locationId && data.locationId !== "none" && typeof data.locationId === 'string' && data.locationId.trim().length > 0) {
         cleanData.locationId = data.locationId.trim()
       }
       
-      console.log('Cleaned data being sent:', cleanData)
+      console.log('✨ Final cleaned data being sent:', JSON.stringify(cleanData, null, 2))
 
       const url = item ? `/api/items/${item.id}` : "/api/items"
       const method = item ? "PUT" : "POST"
