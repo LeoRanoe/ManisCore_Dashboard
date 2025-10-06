@@ -94,7 +94,7 @@ function OrderManagementPage() {
   // Error state
   if (itemsError) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button asChild variant="outline" size="sm">
@@ -204,7 +204,7 @@ function OrderManagementPage() {
   }, { total: 0, toOrder: 0, ordered: 0, arrived: 0, sold: 0 })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button asChild variant="outline" size="sm">

@@ -136,6 +136,55 @@ export function ItemFormDialog({
     },
   })
 
+  // Reset form when dialog opens/closes or item changes
+  useEffect(() => {
+    if (isOpen) {
+      if (item) {
+        // Editing existing item
+        reset({
+          name: item.name,
+          status: item.status,
+          quantityInStock: item.quantityInStock,
+          costPerUnitUSD: item.costPerUnitUSD,
+          freightCostUSD: item.freightCostUSD,
+          sellingPriceSRD: item.sellingPriceSRD,
+          supplier: (item as any).supplier || "",
+          supplierSku: (item as any).supplierSku || "",
+          orderDate: (item as any).orderDate || "",
+          expectedArrival: (item as any).expectedArrival || "",
+          orderNumber: (item as any).orderNumber || "",
+          profitMarginPercent: (item as any).profitMarginPercent || 0,
+          minStockLevel: (item as any).minStockLevel || 0,
+          notes: item.notes || "",
+          companyId: item.companyId,
+          assignedUserId: item.assignedUserId || "",
+          locationId: item.locationId || "",
+        })
+      } else {
+        // Creating new item
+        reset({
+          name: "",
+          status: "ToOrder",
+          quantityInStock: 0,
+          costPerUnitUSD: 0,
+          freightCostUSD: 0,
+          sellingPriceSRD: 0,
+          supplier: "",
+          supplierSku: "",
+          orderDate: "",
+          expectedArrival: "",
+          orderNumber: "",
+          profitMarginPercent: 0,
+          minStockLevel: 0,
+          notes: "",
+          companyId: companies.length > 0 && companies[0].id ? companies[0].id : "",
+          assignedUserId: "",
+          locationId: "",
+        })
+      }
+    }
+  }, [isOpen, item, companies, reset])
+
   const watchedStatus = watch("status")
   const watchedCompanyId = watch("companyId")
 
@@ -202,7 +251,28 @@ export function ItemFormDialog({
         description: `Item ${item ? "updated" : "created"} successfully.`,
       })
 
-      reset()
+      // Reset form to default values for new items
+      if (!item) {
+        reset({
+          name: "",
+          status: "ToOrder",
+          quantityInStock: 0,
+          costPerUnitUSD: 0,
+          freightCostUSD: 0,
+          sellingPriceSRD: 0,
+          supplier: "",
+          supplierSku: "",
+          orderDate: "",
+          expectedArrival: "",
+          orderNumber: "",
+          profitMarginPercent: 0,
+          minStockLevel: 0,
+          notes: "",
+          companyId: companies.length > 0 && companies[0].id ? companies[0].id : "",
+          assignedUserId: "",
+          locationId: "",
+        })
+      }
       onClose()
       onSuccess()
     } catch (error) {
