@@ -203,8 +203,39 @@ export async function POST(request: NextRequest) {
 
     console.log('📦 Prisma data prepared:', JSON.stringify(prismaData, null, 2))
 
+    // Check if an existing item with the same name and company exists
+    console.log('🔍 Checking for existing item...')
+    const existingItem = await prisma.item.findFirst({
+      where: {
+        name: data.name,
+        companyId: data.companyId,
+        status: { in: ['Arrived', 'Sold'] }, // Only merge with items that are already in stock or sold
+      },
+      include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        assignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        location: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    })
+
     // Check if item is being ordered and we need to deduct cash
-    if (data.status === 'Ordered') {
+    if (data.status === 'Ordered' || data.status === 'ToOrder') {
       console.log('💰 Checking company balance for order...')
       const company = await prisma.company.findUnique({
         where: { id: data.companyId },
@@ -224,60 +255,120 @@ export async function POST(request: NextRequest) {
       const totalOrderCostUSD = (data.costPerUnitUSD * data.quantityInStock) + data.freightCostUSD
       console.log(`💵 Order cost: $${totalOrderCostUSD}, Available: $${company.cashBalanceUSD}`)
 
-      // Check if company has sufficient USD balance
-      if (company.cashBalanceUSD < totalOrderCostUSD) {
-        console.error('❌ Insufficient funds')
-        return NextResponse.json(
-          { 
-            error: 'Insufficient funds',
-            message: `Company ${company.name} has insufficient USD balance. Required: $${totalOrderCostUSD.toFixed(2)}, Available: $${company.cashBalanceUSD.toFixed(2)}`,
-            required: totalOrderCostUSD,
-            available: company.cashBalanceUSD,
+      // Only deduct for "Ordered" status (ToOrder doesn't deduct yet)
+      if (data.status === 'Ordered') {
+        // Check if company has sufficient USD balance
+        if (company.cashBalanceUSD < totalOrderCostUSD) {
+          console.error('❌ Insufficient funds')
+          return NextResponse.json(
+            { 
+              error: 'Insufficient funds',
+              message: `Company ${company.name} has insufficient USD balance. Required: $${totalOrderCostUSD.toFixed(2)}, Available: $${company.cashBalanceUSD.toFixed(2)}`,
+              required: totalOrderCostUSD,
+              available: company.cashBalanceUSD,
+            },
+            { status: 400 }
+          )
+        }
+
+        // Deduct the cost from company's USD balance
+        console.log('💳 Deducting balance...')
+        await prisma.company.update({
+          where: { id: data.companyId },
+          data: {
+            cashBalanceUSD: company.cashBalanceUSD - totalOrderCostUSD,
           },
-          { status: 400 }
-        )
+        })
+        console.log('✅ Balance deducted successfully')
       }
-
-      // Deduct the cost from company's USD balance
-      console.log('💳 Deducting balance...')
-      await prisma.company.update({
-        where: { id: data.companyId },
-        data: {
-          cashBalanceUSD: company.cashBalanceUSD - totalOrderCostUSD,
-        },
-      })
-      console.log('✅ Balance deducted successfully')
     }
-
-    console.log('💾 Creating item in database...')
-    console.log('📊 Prisma data object:', JSON.stringify(prismaData, null, 2))
 
     let item
     try {
-      item = await prisma.item.create({
-        data: prismaData,
-        include: {
-          company: {
-            select: {
-              id: true,
-              name: true,
+      // If ordering more of an existing item that has arrived, update the existing item
+      if (existingItem && (data.status === 'ToOrder' || data.status === 'Ordered')) {
+        console.log(`♻️ Found existing item "${existingItem.name}" (ID: ${existingItem.id}). Updating instead of creating duplicate...`)
+        
+        // Calculate weighted average for cost per unit (if prices differ)
+        const existingTotalCost = existingItem.costPerUnitUSD * existingItem.quantityInStock
+        const newTotalCost = data.costPerUnitUSD * data.quantityInStock
+        const combinedQuantity = existingItem.quantityInStock + data.quantityInStock
+        const weightedAvgCostPerUnit = (existingTotalCost + newTotalCost) / combinedQuantity
+        
+        // Calculate weighted average for freight cost
+        const weightedAvgFreightCost = (existingItem.freightCostUSD + data.freightCostUSD) / 2
+        
+        item = await prisma.item.update({
+          where: { id: existingItem.id },
+          data: {
+            quantityInStock: combinedQuantity,
+            costPerUnitUSD: weightedAvgCostPerUnit,
+            freightCostUSD: weightedAvgFreightCost,
+            sellingPriceSRD: data.sellingPriceSRD, // Use new selling price
+            notes: data.notes || existingItem.notes, // Keep existing notes if no new ones
+            // Update optional fields if provided
+            ...(data.assignedUserId && { assignedUserId: data.assignedUserId }),
+            ...(data.locationId && { locationId: data.locationId }),
+            ...(data.supplier && { supplier: data.supplier }),
+            ...(data.supplierSku && { supplierSku: data.supplierSku }),
+            ...(data.orderNumber && { orderNumber: data.orderNumber }),
+            ...(data.orderDate && { orderDate: new Date(data.orderDate) }),
+            ...(data.expectedArrival && { expectedArrival: new Date(data.expectedArrival) }),
+          },
+          include: {
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            assignedUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            location: {
+              select: {
+                id: true,
+                name: true,
+              },
             },
           },
-          assignedUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
+        })
+        console.log(`✅ Updated existing item. New quantity: ${combinedQuantity} units`)
+      } else {
+        // Create a new item if no existing item found or status doesn't match
+        console.log('💾 Creating new item in database...')
+        console.log('📊 Prisma data object:', JSON.stringify(prismaData, null, 2))
+        
+        item = await prisma.item.create({
+          data: prismaData,
+          include: {
+            company: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            assignedUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            location: {
+              select: {
+                id: true,
+                name: true,
+              },
             },
           },
-          location: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      })
+        })
+        console.log('✅ Item created successfully with ID:', item.id)
+      }
     } catch (prismaError: any) {
       console.error('❌ Prisma create operation failed!')
       console.error('Error type:', typeof prismaError)
@@ -297,7 +388,6 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    console.log('✅ Item created successfully with ID:', item.id)
     return NextResponse.json(item, { status: 201 })
   } catch (error) {
     console.error('❌ Unexpected error in POST handler:', error)
