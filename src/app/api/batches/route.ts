@@ -23,22 +23,21 @@ export async function GET(request: NextRequest) {
       where.item = { companyId }
     }
 
-    const batches = await prisma.$queryRaw`
-      SELECT 
-        sb.*,
-        i.name as item_name,
-        i."sellingPriceSRD" as item_selling_price,
-        l.name as location_name,
-        u.name as assigned_user_name,
-        c.name as company_name
-      FROM stock_batches sb
-      JOIN items i ON i.id = sb."itemId"
-      LEFT JOIN locations l ON l.id = sb."locationId"
-      LEFT JOIN users u ON u.id = sb."assignedUserId"
-      JOIN companies c ON c.id = i."companyId"
-      ${itemId ? `WHERE sb."itemId" = ${itemId}` : ''}
-      ORDER BY sb."createdAt" DESC
-    `
+    const batches = await prisma.stockBatch.findMany({
+      where,
+      include: {
+        item: {
+          include: {
+            company: true
+          }
+        },
+        location: true,
+        assignedUser: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
 
     return NextResponse.json({ batches })
   } catch (error) {
@@ -105,49 +104,33 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Create batch using raw SQL
-    const result = await prisma.$queryRaw<{id: string}[]>`
-      INSERT INTO stock_batches (
-        id, quantity, status, "costPerUnitUSD", "freightCostUSD",
-        "orderDate", "expectedArrival", "orderNumber", notes,
-        "createdAt", "updatedAt", "itemId", "locationId", "assignedUserId"
-      )
-      VALUES (
-        gen_random_uuid(),
-        ${quantity},
-        ${status || 'ToOrder'}::"Status",
-        ${costPerUnitUSD},
-        ${freightCostUSD || 0},
-        ${orderDate ? new Date(orderDate) : null},
-        ${expectedArrival ? new Date(expectedArrival) : null},
-        ${orderNumber},
-        ${notes},
-        ${new Date()},
-        ${new Date()},
-        ${itemId},
-        ${locationId},
-        ${assignedUserId}
-      )
-      RETURNING id
-    `
+    // Create batch using Prisma client
+    const batch = await prisma.stockBatch.create({
+      data: {
+        itemId,
+        quantity,
+        status: status || 'ToOrder',
+        costPerUnitUSD,
+        freightCostUSD: freightCostUSD || 0,
+        locationId: locationId || null,
+        assignedUserId: assignedUserId || null,
+        orderDate: orderDate ? new Date(orderDate) : null,
+        expectedArrival: expectedArrival ? new Date(expectedArrival) : null,
+        orderNumber: orderNumber || null,
+        notes: notes || null,
+      },
+      include: {
+        item: {
+          include: {
+            company: true
+          }
+        },
+        location: true,
+        assignedUser: true
+      }
+    })
 
-    const batchId = result[0]?.id
-
-    // Fetch created batch with relations
-    const batch = await prisma.$queryRaw<any[]>`
-      SELECT 
-        sb.*,
-        i.name as item_name,
-        l.name as location_name,
-        u.name as assigned_user_name
-      FROM stock_batches sb
-      JOIN items i ON i.id = sb."itemId"
-      LEFT JOIN locations l ON l.id = sb."locationId"
-      LEFT JOIN users u ON u.id = sb."assignedUserId"
-      WHERE sb.id = ${batchId}
-    `
-
-    return NextResponse.json(batch[0], { status: 201 })
+    return NextResponse.json(batch, { status: 201 })
   } catch (error) {
     console.error('Error creating batch:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

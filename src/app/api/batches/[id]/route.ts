@@ -9,27 +9,24 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const batch = await prisma.$queryRaw<any[]>`
-      SELECT 
-        sb.*,
-        i.name as item_name,
-        i."sellingPriceSRD" as item_selling_price,
-        l.name as location_name,
-        u.name as assigned_user_name,
-        c.name as company_name
-      FROM stock_batches sb
-      JOIN items i ON i.id = sb."itemId"
-      LEFT JOIN locations l ON l.id = sb."locationId"
-      LEFT JOIN users u ON u.id = sb."assignedUserId"
-      JOIN companies c ON c.id = i."companyId"
-      WHERE sb.id = ${params.id}
-    `
+    const batch = await prisma.stockBatch.findUnique({
+      where: { id: params.id },
+      include: {
+        item: {
+          include: {
+            company: true
+          }
+        },
+        location: true,
+        assignedUser: true
+      }
+    })
 
-    if (!batch || batch.length === 0) {
+    if (!batch) {
       return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
     }
 
-    return NextResponse.json(batch[0])
+    return NextResponse.json(batch)
   } catch (error) {
     console.error('Error fetching batch:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -58,31 +55,29 @@ export async function PATCH(
     } = body
 
     // Get existing batch
-    const existingBatch = await prisma.$queryRaw<any[]>`
-      SELECT sb.*, i."companyId" 
-      FROM stock_batches sb
-      JOIN items i ON i.id = sb."itemId"
-      WHERE sb.id = ${params.id}
-    `
+    const existingBatch = await prisma.stockBatch.findUnique({
+      where: { id: params.id },
+      include: {
+        item: true
+      }
+    })
 
-    if (!existingBatch || existingBatch.length === 0) {
+    if (!existingBatch) {
       return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
     }
 
-    const batch = existingBatch[0]
-
     // If status changed to "Ordered", handle cash deduction
-    if (status && status === 'Ordered' && batch.status !== 'Ordered') {
+    if (status && status === 'Ordered' && existingBatch.status !== 'Ordered') {
       const company = await prisma.company.findUnique({
-        where: { id: batch.companyId }
+        where: { id: existingBatch.item.companyId }
       })
 
       if (!company) {
         return NextResponse.json({ error: 'Company not found' }, { status: 404 })
       }
 
-      const totalCost = ((costPerUnitUSD || batch.costPerUnitUSD) * (quantity || batch.quantity)) +
-                        (freightCostUSD !== undefined ? freightCostUSD : batch.freightCostUSD)
+      const totalCost = ((costPerUnitUSD || existingBatch.costPerUnitUSD) * (quantity || existingBatch.quantity)) +
+                        (freightCostUSD !== undefined ? freightCostUSD : existingBatch.freightCostUSD)
 
       if (company.cashBalanceUSD < totalCost) {
         return NextResponse.json(
@@ -102,42 +97,39 @@ export async function PATCH(
     }
 
     // If status changed to "Arrived", set arrivedDate
-    const shouldSetArrivedDate = status === 'Arrived' && batch.status !== 'Arrived'
+    const shouldSetArrivedDate = status === 'Arrived' && existingBatch.status !== 'Arrived'
 
-    // Build update query
-    await prisma.$executeRaw`
-      UPDATE stock_batches
-      SET
-        quantity = COALESCE(${quantity}, quantity),
-        status = COALESCE(${status}::"Status", status),
-        "costPerUnitUSD" = COALESCE(${costPerUnitUSD}, "costPerUnitUSD"),
-        "freightCostUSD" = COALESCE(${freightCostUSD}, "freightCostUSD"),
-        "locationId" = COALESCE(${locationId}, "locationId"),
-        "assignedUserId" = COALESCE(${assignedUserId}, "assignedUserId"),
-        "orderDate" = COALESCE(${orderDate ? new Date(orderDate) : null}, "orderDate"),
-        "expectedArrival" = COALESCE(${expectedArrival ? new Date(expectedArrival) : null}, "expectedArrival"),
-        "arrivedDate" = COALESCE(${shouldSetArrivedDate ? new Date() : arrivedDate ? new Date(arrivedDate) : null}, "arrivedDate"),
-        "orderNumber" = COALESCE(${orderNumber}, "orderNumber"),
-        notes = COALESCE(${notes}, notes),
-        "updatedAt" = ${new Date()}
-      WHERE id = ${params.id}
-    `
+    // Build update data
+    const updateData: any = {}
+    if (quantity !== undefined) updateData.quantity = quantity
+    if (status !== undefined) updateData.status = status
+    if (costPerUnitUSD !== undefined) updateData.costPerUnitUSD = costPerUnitUSD
+    if (freightCostUSD !== undefined) updateData.freightCostUSD = freightCostUSD
+    if (locationId !== undefined) updateData.locationId = locationId
+    if (assignedUserId !== undefined) updateData.assignedUserId = assignedUserId
+    if (orderDate !== undefined) updateData.orderDate = orderDate ? new Date(orderDate) : null
+    if (expectedArrival !== undefined) updateData.expectedArrival = expectedArrival ? new Date(expectedArrival) : null
+    if (shouldSetArrivedDate) updateData.arrivedDate = new Date()
+    else if (arrivedDate !== undefined) updateData.arrivedDate = arrivedDate ? new Date(arrivedDate) : null
+    if (orderNumber !== undefined) updateData.orderNumber = orderNumber
+    if (notes !== undefined) updateData.notes = notes
 
-    // Fetch updated batch
-    const updatedBatch = await prisma.$queryRaw<any[]>`
-      SELECT 
-        sb.*,
-        i.name as item_name,
-        l.name as location_name,
-        u.name as assigned_user_name
-      FROM stock_batches sb
-      JOIN items i ON i.id = sb."itemId"
-      LEFT JOIN locations l ON l.id = sb."locationId"
-      LEFT JOIN users u ON u.id = sb."assignedUserId"
-      WHERE sb.id = ${params.id}
-    `
+    // Update batch
+    const updatedBatch = await prisma.stockBatch.update({
+      where: { id: params.id },
+      data: updateData,
+      include: {
+        item: {
+          include: {
+            company: true
+          }
+        },
+        location: true,
+        assignedUser: true
+      }
+    })
 
-    return NextResponse.json(updatedBatch[0])
+    return NextResponse.json(updatedBatch)
   } catch (error) {
     console.error('Error updating batch:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -151,25 +143,23 @@ export async function DELETE(
 ) {
   try {
     // Get batch info before deletion
-    const batch = await prisma.$queryRaw<any[]>`
-      SELECT sb.*, i."companyId", i.name as item_name
-      FROM stock_batches sb
-      JOIN items i ON i.id = sb."itemId"
-      WHERE sb.id = ${params.id}
-    `
+    const batch = await prisma.stockBatch.findUnique({
+      where: { id: params.id },
+      include: {
+        item: true
+      }
+    })
 
-    if (!batch || batch.length === 0) {
+    if (!batch) {
       return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
     }
 
-    const batchData = batch[0]
-
     // If batch was "Ordered" or "Arrived", return cash to company
-    if (batchData.status === 'Ordered' || batchData.status === 'Arrived') {
-      const totalCost = (batchData.costPerUnitUSD * batchData.quantity) + batchData.freightCostUSD
+    if (batch.status === 'Ordered' || batch.status === 'Arrived') {
+      const totalCost = (batch.costPerUnitUSD * batch.quantity) + batch.freightCostUSD
       
       await prisma.company.update({
-        where: { id: batchData.companyId },
+        where: { id: batch.item.companyId },
         data: {
           cashBalanceUSD: { increment: totalCost }
         }
@@ -177,13 +167,13 @@ export async function DELETE(
     }
 
     // Delete batch
-    await prisma.$executeRaw`
-      DELETE FROM stock_batches WHERE id = ${params.id}
-    `
+    await prisma.stockBatch.delete({
+      where: { id: params.id }
+    })
 
     return NextResponse.json({
       message: 'Batch deleted successfully',
-      refundedAmount: (batchData.costPerUnitUSD * batchData.quantity) + batchData.freightCostUSD
+      refundedAmount: (batch.costPerUnitUSD * batch.quantity) + batch.freightCostUSD
     })
   } catch (error) {
     console.error('Error deleting batch:', error)
