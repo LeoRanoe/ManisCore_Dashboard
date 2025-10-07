@@ -27,11 +27,11 @@ import {
 const BatchFormSchema = z.object({
   itemId: z.string().min(1, "Item is required"),
   locationId: z.string().optional(),
-  quantity: z.number().min(1, "Quantity must be at least 1"),
+  quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
   status: z.enum(["ToOrder", "Ordered", "Arrived", "Sold"]),
-  costPerUnitUSD: z.number().min(0, "Cost must be positive"),
-  freightCostUSD: z.number().min(0, "Freight cost must be positive"),
-  sellingPriceSRD: z.number().min(0, "Selling price must be positive"),
+  costPerUnitUSD: z.coerce.number().min(0, "Cost must be positive"),
+  freightCostUSD: z.coerce.number().min(0, "Freight cost must be positive"),
+  sellingPriceSRD: z.coerce.number().min(0, "Selling price must be positive"),
 })
 
 type BatchFormData = z.infer<typeof BatchFormSchema>
@@ -88,13 +88,13 @@ export function BatchFormDialog({
     reset,
     setValue,
     watch,
-  } = useForm<BatchFormData>({
+  } = useForm({
     resolver: zodResolver(BatchFormSchema),
     defaultValues: {
       itemId: "",
       locationId: undefined,
       quantity: 1,
-      status: "ToOrder",
+      status: "ToOrder" as const,
       costPerUnitUSD: 0,
       freightCostUSD: 0,
       sellingPriceSRD: 0,
