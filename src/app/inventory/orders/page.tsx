@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { ArrowLeft, ShoppingCart, Package, TrendingUp, AlertCircle, Plus, RefreshCw, MapPin, Edit } from "lucide-react"
+import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -248,26 +249,27 @@ export default function OrderManagementPage() {
   })
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/inventory">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Inventory
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Order Management</h1>
-            <p className="text-muted-foreground">
-              Track and manage order batches throughout their lifecycle
-            </p>
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/inventory">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Inventory
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Order Management</h1>
+              <p className="text-muted-foreground">
+                Track and manage order batches throughout their lifecycle
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={loadData} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Refresh
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={loadData} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              Refresh
           </Button>
           <Button onClick={() => setShowCreateDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -423,6 +425,7 @@ export default function OrderManagementPage() {
 
       <BatchFormDialog open={showCreateDialog} onOpenChange={setShowCreateDialog} items={items} locations={locations} onSuccess={handleSuccess} />
       <BatchFormDialog open={showEditDialog} onOpenChange={setShowEditDialog} batch={selectedBatch} items={items} locations={locations} onSuccess={handleSuccess} />
-    </div>
+      </div>
+    </DashboardLayout>
   )
 }
