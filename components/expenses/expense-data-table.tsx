@@ -37,12 +37,12 @@ interface Expense {
   company: {
     id: string
     name: string
-  }
+  } | null
   createdBy: {
     id: string
     name: string
     email: string
-  }
+  } | null
 }
 
 interface Company {
@@ -102,7 +102,7 @@ export function ExpenseDataTable({
 
       toast({
         title: "Expense deleted",
-        description: `The expense has been deleted and ${expense.currency === 'SRD' ? 'SRD ' : '$'}${expense.amount.toFixed(2)} has been returned to ${expense.company.name}.`,
+        description: `The expense has been deleted and ${expense.currency === 'SRD' ? 'SRD ' : '$'}${expense.amount.toFixed(2)} has been returned to ${expense.company?.name || 'the company'}.`,
       })
 
       onUpdate()
@@ -168,7 +168,7 @@ export function ExpenseDataTable({
                     </span>
                   </div>
                   <div className="text-xs text-muted-foreground mt-1 lg:hidden">
-                    {expense.company.name} • {expense.createdBy.name}
+                    {expense.company?.name || 'Unknown Company'} • {expense.createdBy?.name || 'Unknown User'}
                   </div>
                 </div>
               </TableCell>
@@ -188,11 +188,11 @@ export function ExpenseDataTable({
                   {categoryLabels[expense.category] || expense.category}
                 </Badge>
               </TableCell>
-              <TableCell className="hidden lg:table-cell">{expense.company.name}</TableCell>
+              <TableCell className="hidden lg:table-cell">{expense.company?.name || 'Unknown Company'}</TableCell>
               <TableCell className="hidden lg:table-cell">
                 <div className="flex flex-col">
-                  <span className="text-sm">{expense.createdBy.name}</span>
-                  <span className="text-xs text-muted-foreground">{expense.createdBy.email}</span>
+                  <span className="text-sm">{expense.createdBy?.name || 'Unknown User'}</span>
+                  <span className="text-xs text-muted-foreground">{expense.createdBy?.email || 'N/A'}</span>
                 </div>
               </TableCell>
               <TableCell className="hidden md:table-cell">{format(new Date(expense.date), "MMM dd, yyyy")}</TableCell>
@@ -227,7 +227,7 @@ export function ExpenseDataTable({
                           <strong>
                             {getCurrencySymbol(expense.currency)}{expense.amount.toFixed(2)}
                           </strong>{" "}
-                          to {expense.company.name}'s cash balance.
+                          to {expense.company?.name || 'the company'}'s cash balance.
                           <br />
                           <br />
                           This action cannot be undone.

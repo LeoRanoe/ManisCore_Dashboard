@@ -235,8 +235,9 @@ function DashboardPage() {
           )
 
           // Calculate expense totals
-          const totalExpensesSRD = expensesData.filter((e: any) => e.currency === "SRD").reduce((sum: number, e: any) => sum + e.amount, 0)
-          const totalExpensesUSD = expensesData.filter((e: any) => e.currency === "USD").reduce((sum: number, e: any) => sum + e.amount, 0)
+          const expenses = expensesData?.expenses || []
+          const totalExpensesSRD = expenses.filter((e: any) => e.currency === "SRD").reduce((sum: number, e: any) => sum + e.amount, 0)
+          const totalExpensesUSD = expenses.filter((e: any) => e.currency === "USD").reduce((sum: number, e: any) => sum + e.amount, 0)
 
           setFinancialSummary({
             totalCashSRD: companiesWithFinancials.reduce((sum, c) => sum + c.cashBalanceSRD, 0),
