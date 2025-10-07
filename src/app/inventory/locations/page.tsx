@@ -1,6 +1,6 @@
-"use client"
+﻿"use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { ArrowLeft, MapPin, Search, Package, Move } from "lucide-react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Button } from "@/components/ui/button"
@@ -22,53 +22,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
-import { useItems, useLocations } from "@/lib/hooks"
+import { useLocations } from "@/lib/hooks"
 import { useCompany } from "../../../../contexts/company-context"
+import { BatchTransferDialog } from "@/components/inventory/batch-transfer-dialog"
 import Link from "next/link"
 
-interface Item {
+interface StockBatch {
   id: string
-  name: string
+  itemId: string
+  locationId?: string | null
+  quantity: number
   status: "ToOrder" | "Ordered" | "Arrived" | "Sold"
-  quantityInStock: number
   costPerUnitUSD: number
   freightCostUSD: number
-  sellingPriceSRD: number
-  supplier?: string | null
-  supplierSku?: string | null
-  orderDate?: string | null
-  expectedArrival?: string | null
-  orderNumber?: string | null
-  profitMarginPercent?: number | null
-  minStockLevel?: number | null
-  notes?: string | null
-  companyId: string
-  assignedUserId?: string | null
-  locationId?: string | null
-  company: {
+  item: {
     id: string
     name: string
-  }
-  assignedUser?: {
-    id: string
-    name: string
-    email: string
+    company: {
+      id: string
+      name: string
+    }
   }
   location?: {
     id: string
     name: string
-  }
-  createdAt: string
+  } | null
 }
 
 interface Location {
@@ -87,225 +66,125 @@ const statusConfig = {
 function LocationManagementPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [locationFilter, setLocationFilter] = useState<string>("all")
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null)
-  const [targetLocationId, setTargetLocationId] = useState<string>("")
-  const [moveDialogOpen, setMoveDialogOpen] = useState(false)
-  const [processing, setProcessing] = useState(false)
+  const [batches, setBatches] = useState<StockBatch[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedBatch, setSelectedBatch] = useState<StockBatch | null>(null)
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false)
   const { toast } = useToast()
-
-  // Use dynamic hooks for automatic company filtering and error handling
-  const { 
-    data: itemsData, 
-    loading: itemsLoading, 
-    error: itemsError,
-    refresh: refreshItems 
-  } = useItems(searchQuery)
-
-  const { 
-    data: locationsData, 
-    loading: locationsLoading 
-  } = useLocations()
-
   const { selectedCompany } = useCompany()
 
-  const items = itemsData?.items || []
+  const {
+    data: locationsData,
+    loading: locationsLoading,
+  } = useLocations()
+
   const locations = locationsData?.locations || []
-  const loading = itemsLoading || locationsLoading
 
-  const handleMoveItem = async () => {
-    if (!selectedItem) return
-
-    setProcessing(true)
+  const fetchBatches = async () => {
+    setLoading(true)
     try {
-      // Get actual locationId (convert "unassigned" to undefined)
-      const actualLocationId = targetLocationId === "unassigned" ? undefined : targetLocationId
-      const targetLocation = actualLocationId ? locations.find(l => l.id === actualLocationId) : null
-      
-      // Helper function to safely get string value
-      const getStringValue = (value: string | null | undefined): string | undefined => {
-        if (value === null || value === undefined) return undefined
-        if (typeof value !== 'string') return undefined
-        const trimmed = value.trim()
-        return trimmed.length > 0 ? trimmed : undefined
+      const params = new URLSearchParams()
+      if (selectedCompany && selectedCompany !== "all") {
+        params.append("companyId", selectedCompany)
       }
 
-      // Helper function to safely get number value
-      const getNumberValue = (value: number | null | undefined): number | undefined => {
-        if (value === null || value === undefined) return undefined
-        if (typeof value === 'number') return value
-        return undefined
-      }
+      const response = await fetch(`/api/batches?${params.toString()}`)
+      if (!response.ok) throw new Error("Failed to fetch batches")
 
-      // Build notes with move history
-      const existingNotes = getStringValue(selectedItem.notes) || ""
-      const moveNote = actualLocationId 
-        ? `[${new Date().toLocaleDateString()}] Moved to ${targetLocation?.name}`
-        : `[${new Date().toLocaleDateString()}] Removed from location`
-      const newNotes = existingNotes 
-        ? `${existingNotes}\n${moveNote}`
-        : moveNote
-
-      // Build update data with only required fields first
-      const updateData: Record<string, any> = {
-        name: selectedItem.name,
-        status: selectedItem.status,
-        quantityInStock: selectedItem.quantityInStock,
-        costPerUnitUSD: selectedItem.costPerUnitUSD,
-        freightCostUSD: selectedItem.freightCostUSD,
-        sellingPriceSRD: selectedItem.sellingPriceSRD,
-        companyId: selectedItem.companyId,
-        notes: newNotes,
-      }
-
-      // Add optional string fields
-      const supplier = getStringValue(selectedItem.supplier)
-      if (supplier) updateData.supplier = supplier
-
-      const supplierSku = getStringValue(selectedItem.supplierSku)
-      if (supplierSku) updateData.supplierSku = supplierSku
-
-      const orderDate = getStringValue(selectedItem.orderDate)
-      if (orderDate) updateData.orderDate = orderDate
-
-      const expectedArrival = getStringValue(selectedItem.expectedArrival)
-      if (expectedArrival) updateData.expectedArrival = expectedArrival
-
-      const orderNumber = getStringValue(selectedItem.orderNumber)
-      if (orderNumber) updateData.orderNumber = orderNumber
-
-      const assignedUserId = getStringValue(selectedItem.assignedUserId)
-      if (assignedUserId) updateData.assignedUserId = assignedUserId
-
-      // Add location (can be undefined to remove location)
-      const locationId = getStringValue(actualLocationId)
-      if (locationId) updateData.locationId = locationId
-
-      // Add optional number fields
-      const profitMargin = getNumberValue(selectedItem.profitMarginPercent)
-      if (profitMargin !== undefined) updateData.profitMarginPercent = profitMargin
-
-      const minStock = getNumberValue(selectedItem.minStockLevel)
-      if (minStock !== undefined) updateData.minStockLevel = minStock
-
-      console.log('📦 Moving item:', selectedItem.name)
-      console.log('🎯 Target location:', actualLocationId || 'Unassigned')
-      console.log('📝 Update data:', JSON.stringify(updateData, null, 2))
-
-      const response = await fetch(`/api/items/${selectedItem.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updateData),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.error('❌ Move failed:', errorData)
-        throw new Error(errorData.error || errorData.message || `Failed to move item (${response.status})`)
-      }
-
-      const result = await response.json()
-      console.log('✅ Move successful:', result)
-
-      toast({
-        title: "Success",
-        description: actualLocationId 
-          ? `Item moved to ${targetLocation?.name}`
-          : "Item removed from location",
-      })
-
-      // Refresh items and close dialog
-      refreshItems()
-      closeMoveDialog()
+      const data = await response.json()
+      setBatches(data.batches || [])
     } catch (error) {
-      console.error("❌ Error moving item:", error)
+      console.error("Error fetching batches:", error)
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to move item",
+        description: "Failed to load batches",
         variant: "destructive",
       })
     } finally {
-      setProcessing(false)
+      setLoading(false)
     }
   }
 
-  const openMoveDialog = (item: Item) => {
-    setSelectedItem(item)
-    setTargetLocationId(item.locationId || "unassigned")
-    setMoveDialogOpen(true)
+  useEffect(() => {
+    fetchBatches()
+  }, [selectedCompany])
+
+  const openTransferDialog = (batch: StockBatch) => {
+    setSelectedBatch(batch)
+    setTransferDialogOpen(true)
   }
 
-  const closeMoveDialog = () => {
-    setSelectedItem(null)
-    setTargetLocationId("unassigned")
-    setMoveDialogOpen(false)
+  const handleTransferSuccess = () => {
+    fetchBatches()
   }
 
-  // Group items by location for better organization
-  const itemsByLocation = items.reduce((acc: Record<string, { name: string; items: any[] }>, item: any) => {
-    const locationKey = item.location?.id || "unassigned"
-    const locationName = item.location?.name || "Unassigned"
-    
-    if (!acc[locationKey]) {
-      acc[locationKey] = {
-        name: locationName,
-        items: []
+  const filteredBatches = batches.filter((batch) => {
+    if (locationFilter !== "all") {
+      if (locationFilter === "unassigned") {
+        if (batch.locationId) return false
+      } else {
+        if (batch.locationId !== locationFilter) return false
       }
     }
-    acc[locationKey].items.push(item)
-    return acc
-  }, {})
 
-  // Error state
-  if (itemsError) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button asChild variant="outline" size="sm">
-              <Link href="/inventory">
-                <ArrowLeft className="h-4 w-4" />
-                Back to Inventory
-              </Link>
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Location Management</h1>
-              <p className="text-muted-foreground">
-                Manage item locations and track inventory across different storage areas.
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="text-center py-8">
-          <p className="text-red-600 mb-4">Error loading items: {itemsError}</p>
-          <Button onClick={refreshItems}>Retry</Button>
-        </div>
-      </div>
-    )
-  }
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      const itemName = batch.item?.name?.toLowerCase() || ""
+      const locationName = batch.location?.name?.toLowerCase() || ""
+      if (!itemName.includes(query) && !locationName.includes(query)) {
+        return false
+      }
+    }
+
+    return true
+  })
+
+  const batchesByLocation = filteredBatches.reduce(
+    (acc: Record<string, { name: string; batches: StockBatch[] }>, batch) => {
+      const locationKey = batch.locationId || "unassigned"
+      const locationName = batch.location?.name || "Unassigned"
+
+      if (!acc[locationKey]) {
+        acc[locationKey] = {
+          name: locationName,
+          batches: [],
+        }
+      }
+
+      acc[locationKey].batches.push(batch)
+      return acc
+    },
+    {}
+  )
+
+  const locationSummary = Object.entries(batchesByLocation).map(([key, data]) => ({
+    id: key,
+    name: data.name,
+    totalUnits: data.batches.reduce((sum, batch) => sum + batch.quantity, 0),
+    batchCount: data.batches.length,
+  }))
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/inventory">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Inventory
-            </Link>
+    <div className="space-y-6 p-4 md:p-6">
+      <div className="flex items-center gap-4">
+        <Link href="/inventory">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Inventory
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Location Management</h1>
-            <p className="text-muted-foreground">
-              Manage item locations and track inventory across different storage areas.
-            </p>
-          </div>
-        </div>
+        </Link>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-4 flex-wrap">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Location Management</h1>
+        <p className="text-gray-500 dark:text-gray-400">
+          Manage item locations and track inventory across different storage areas.
+        </p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search items..."
             value={searchQuery}
@@ -314,8 +193,8 @@ function LocationManagementPage() {
           />
         </div>
         <Select value={locationFilter} onValueChange={setLocationFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="All Locations" />
+          <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectValue placeholder="Filter by location" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Locations</SelectItem>
@@ -329,28 +208,28 @@ function LocationManagementPage() {
         </Select>
       </div>
 
-      {/* Location Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {Object.entries(itemsByLocation).map(([locationId, locationData]) => (
-          <Card key={locationId}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {locationSummary.map((summary) => (
+          <Card key={summary.id}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                {locationData.name}
+              <CardTitle className="text-sm font-medium">
+                {summary.id === "unassigned" ? (
+                  <MapPin className="h-4 w-4 inline mr-2 text-gray-400" />
+                ) : (
+                  <MapPin className="h-4 w-4 inline mr-2 text-blue-500" />
+                )}
+                {summary.name}
               </CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{locationData.items.length}</div>
-              <p className="text-xs text-muted-foreground">
-                {locationData.items.reduce((total, item) => total + item.quantityInStock, 0)} total units
-              </p>
+              <div className="text-2xl font-bold">{summary.batchCount}</div>
+              <p className="text-xs text-muted-foreground">{summary.totalUnits} total units</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Items Table */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -359,119 +238,77 @@ function LocationManagementPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item Name</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Current Location</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    Loading...
-                  </TableCell>
-                </TableRow>
-              ) : items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    No items found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusConfig[item.status as keyof typeof statusConfig]?.variant || "default"}>
-                        {statusConfig[item.status as keyof typeof statusConfig]?.label || item.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{item.quantityInStock} units</TableCell>
-                    <TableCell>
-                      {item.location ? (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {item.location.name}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">Unassigned</span>
-                      )}
-                    </TableCell>
-                    <TableCell>{item.company.name}</TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openMoveDialog(item)}
-                        className="gap-1"
-                      >
-                        <Move className="h-3 w-3" />
-                        Move
-                      </Button>
-                    </TableCell>
+          {loading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading batches...</div>
+          ) : filteredBatches.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No batches found</p>
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Item Name</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Quantity</TableHead>
+                    <TableHead>Current Location</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredBatches.map((batch) => (
+                    <TableRow key={batch.id}>
+                      <TableCell className="font-medium">{batch.item.name}</TableCell>
+                      <TableCell>
+                        <Badge variant={statusConfig[batch.status].variant}>
+                          {statusConfig[batch.status].label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{batch.quantity} units</TableCell>
+                      <TableCell>
+                        {batch.location ? (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3 text-blue-500" />
+                            {batch.location.name}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Unassigned</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{batch.item.company.name}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openTransferDialog(batch)}
+                        >
+                          <Move className="h-4 w-4 mr-2" />
+                          Move
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Move Item Dialog */}
-      <Dialog open={moveDialogOpen} onOpenChange={closeMoveDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Move Item - {selectedItem?.name}</DialogTitle>
-            <DialogDescription>
-              Select a new location for this item or remove it from any location.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="location">Target Location</Label>
-              <Select value={targetLocationId || "unassigned"} onValueChange={(val) => setTargetLocationId(val === "unassigned" ? "" : val)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select location or leave unassigned" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">No Location (Unassigned)</SelectItem>
-                  {locations.map((location) => (
-                    <SelectItem key={location.id} value={location.id}>
-                      {location.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedItem?.location && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Current location: {selectedItem.location.name}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={closeMoveDialog}>
-              Cancel
-            </Button>
-            <Button onClick={handleMoveItem} disabled={processing}>
-              {processing ? "Moving..." : "Move Item"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <BatchTransferDialog
+        open={transferDialogOpen}
+        onOpenChange={setTransferDialogOpen}
+        batch={selectedBatch}
+        locations={locations}
+        onSuccess={handleTransferSuccess}
+      />
     </div>
   )
 }
 
-// Wrap with DashboardLayout
 export default function LocationManagementPageWithLayout() {
   return (
     <DashboardLayout>
