@@ -22,8 +22,8 @@ function ExpensesPage() {
   // Fetch companies (API returns array directly, not wrapped in object)
   const { data: companiesData } = useApi<any[]>("/api/companies")
   
-  // Mock user ID (in production this would come from auth)
-  const currentUserId = "mock-user-id"
+  // User ID will be set from auth in the future, for now it's optional
+  const currentUserId = undefined
 
   const expenses = expensesData?.expenses || []
   const companies = companiesData || []

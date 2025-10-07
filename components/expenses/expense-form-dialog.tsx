@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,7 +22,7 @@ interface Company {
 interface ExpenseFormDialogProps {
   expense?: any
   companies: Company[]
-  currentUserId: string
+  currentUserId?: string
   trigger?: React.ReactNode
   onSuccess?: () => void
 }
@@ -68,7 +68,7 @@ export function ExpenseFormDialog({
       category: expense?.category || "MISCELLANEOUS",
       currency: expense?.currency || "SRD",
       companyId: expense?.companyId || "",
-      createdById: currentUserId,
+      createdById: currentUserId || undefined,
       date: expense?.date ? new Date(expense.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     },
   })
@@ -151,6 +151,9 @@ export function ExpenseFormDialog({
             <DollarSign className="h-5 w-5" />
             {expense ? "Edit Expense" : "Add New Expense"}
           </DialogTitle>
+          <DialogDescription>
+            {expense ? "Update the expense details below." : "Enter the expense details and select a company. The amount will be deducted from the company's cash balance."}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">

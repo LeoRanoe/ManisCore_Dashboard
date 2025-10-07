@@ -55,7 +55,7 @@ interface Company {
 interface ExpenseDataTableProps {
   expenses: Expense[]
   companies: Company[]
-  currentUserId: string
+  currentUserId?: string
   onUpdate: () => void
 }
 
