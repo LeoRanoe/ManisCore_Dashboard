@@ -179,6 +179,17 @@ function InventoryPage() {
     ? ((inventoryMetrics.totalProfitSRD / inventoryMetrics.totalValueSRD) * 100) 
     : 0
 
+  // Calculate status breakdown
+  const statusCounts = items.reduce((acc, item) => {
+    acc[item.status] = (acc[item.status] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
+  const toOrderCount = statusCounts['ToOrder'] || 0
+  const orderedCount = statusCounts['Ordered'] || 0
+  const arrivedCount = statusCounts['Arrived'] || 0
+  const soldCount = statusCounts['Sold'] || 0
+
   // Error state
   if (itemsError) {
     return (
@@ -309,6 +320,69 @@ function InventoryPage() {
             </div>
             <p className="text-xs text-muted-foreground">
               {profitMargin.toFixed(1)}% margin
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Status Breakdown Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-blue-200 dark:border-blue-900">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">To Order</CardTitle>
+            <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+              <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">{toOrderCount}</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{toOrderCount}</div>
+            <p className="text-xs text-muted-foreground">
+              Items to be ordered
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-yellow-200 dark:border-yellow-900">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ordered</CardTitle>
+            <div className="h-8 w-8 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
+              <span className="text-xs font-semibold text-yellow-700 dark:text-yellow-300">{orderedCount}</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{orderedCount}</div>
+            <p className="text-xs text-muted-foreground">
+              Items currently ordered
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-green-200 dark:border-green-900">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Arrived</CardTitle>
+            <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+              <span className="text-xs font-semibold text-green-700 dark:text-green-300">{arrivedCount}</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{arrivedCount}</div>
+            <p className="text-xs text-muted-foreground">
+              Items in stock
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-purple-200 dark:border-purple-900">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Sold</CardTitle>
+            <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+              <span className="text-xs font-semibold text-purple-700 dark:text-purple-300">{soldCount}</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{soldCount}</div>
+            <p className="text-xs text-muted-foreground">
+              Items sold
             </p>
           </CardContent>
         </Card>
