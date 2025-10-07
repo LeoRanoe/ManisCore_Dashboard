@@ -27,7 +27,7 @@ export const ItemFormSchema = z.object({
 
 export const ItemQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(10),
+  limit: z.coerce.number().int().min(1).max(10000).default(10),
   sortBy: z.enum(['name', 'status', 'quantityInStock', 'costPerUnitUSD', 'sellingPriceSRD', 'createdAt']).default('createdAt'),
   order: z.enum(['asc', 'desc']).default('desc'),
   status: StatusEnum.optional(),

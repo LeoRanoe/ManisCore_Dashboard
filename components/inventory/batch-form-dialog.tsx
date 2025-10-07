@@ -92,7 +92,7 @@ export function BatchFormDialog({
     resolver: zodResolver(BatchFormSchema),
     defaultValues: {
       itemId: "",
-      locationId: "",
+      locationId: undefined,
       quantity: 1,
       status: "ToOrder",
       costPerUnitUSD: 0,
@@ -227,15 +227,14 @@ export function BatchFormDialog({
             <div className="space-y-2">
               <Label htmlFor="locationId">Location</Label>
               <Select
-                value={watch("locationId")}
+                value={watch("locationId") || undefined}
                 onValueChange={(value) => setValue("locationId", value)}
                 disabled={!selectedItem}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select location" />
+                  <SelectValue placeholder="Select location (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Location</SelectItem>
                   {filteredLocations.map((location) => (
                     <SelectItem key={location.id} value={location.id}>
                       {location.name}
