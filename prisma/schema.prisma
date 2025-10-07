@@ -46,9 +46,9 @@ model User {
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
-  items     Item[]     // Items assigned to this user
-  locations Location[] // Locations managed by this user
-  expenses  Expense[]  // Expenses created by this user
+  locations    Location[]   // Locations managed by this user
+  expenses     Expense[]    // Expenses created by this user
+  stockBatches StockBatch[] // Stock batches assigned to this user
 
   @@map("users")
 }
@@ -69,7 +69,7 @@ model Location {
   managerId String?
   manager   User? @relation(fields: [managerId], references: [id], onDelete: SetNull)
   
-  items Item[] // Items stored at this location
+  stockBatches StockBatch[] // Stock batches stored at this location
 
   @@map("locations")
 }
@@ -126,32 +126,49 @@ model Expense {
 
 // Represents one item in the inventory, linked to a company, user, and location
 model Item {
-  id                String   @id @default(cuid())
-  name              String
-  status            Status   @default(ToOrder)
-  quantityInStock   Int      @default(0)
-  costPerUnitUSD    Float
-  freightCostUSD    Float    @default(0) // Total freight cost for the order, not per unit
-  sellingPriceSRD   Float
-  supplier          String?  // Where the item is ordered from
-  supplierSku       String?  // Supplier's product SKU/code
-  orderDate         DateTime? // When the order was placed
-  expectedArrival   DateTime? // Expected arrival date
-  orderNumber       String?  // Order number or reference
-  profitMarginPercent Float? // Profit margin percentage
-  minStockLevel     Int?     // Minimum stock level for reorder alerts
-  notes             String?  // Optional notes about the item
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  name                String
+  costPerUnitUSD      Float    // Base cost per unit
+  sellingPriceSRD     Float    // Standard selling price
+  supplier            String?  // Where the item is ordered from
+  supplierSku         String?  // Supplier's product SKU/code
+  profitMarginPercent Float?   // Profit margin percentage
+  minStockLevel       Int?     // Minimum stock level for reorder alerts
+  notes               String?  // Optional notes about the item
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
-  assignedUserId String?
-  assignedUser   User? @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  batches StockBatch[] // Multiple batches of this item with different statuses and locations
+
+  @@map("items")
+}
+
+// Represents a batch/lot of items with specific status and location
+model StockBatch {
+  id                String   @id @default(cuid())
+  quantity          Int      @default(0)
+  status            Status   @default(ToOrder)
+  costPerUnitUSD    Float    // Cost for this specific batch
+  freightCostUSD    Float    @default(0) // Freight cost for this batch
+  orderDate         DateTime? // When this batch was ordered
+  expectedArrival   DateTime? // Expected arrival date for this batch
+  orderNumber       String?  // Order number or reference
+  arrivedDate       DateTime? // When this batch actually arrived
+  notes             String?  // Batch-specific notes
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  itemId String
+  item   Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
   
   locationId String?
   location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  
+  assignedUserId String?
+  assignedUser   User? @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
 
-  @@map("items")
+  @@map("stock_batches")
 }
