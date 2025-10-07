@@ -71,7 +71,7 @@ export const ExpenseFormSchema = z.object({
   amount: z.number().min(0.01, 'Amount must be greater than 0'),
   currency: CurrencyEnum,
   category: ExpenseCategoryEnum,
-  date: z.string().datetime().optional(),
+  date: z.string().min(1, 'Date is required'),
   notes: z.string().optional(),
   companyId: z.string().min(1, 'Company is required'),
   createdById: z.string().optional(),
