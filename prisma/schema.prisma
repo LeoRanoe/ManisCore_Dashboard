@@ -46,9 +46,15 @@ model User {
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
+  // OLD system relations (preserved for backward compatibility)
+  items        Item[]       @relation("ItemToUser")
+  
+  // Shared relations
   locations    Location[]   // Locations managed by this user
   expenses     Expense[]    // Expenses created by this user
-  stockBatches StockBatch[] // Stock batches assigned to this user
+  
+  // NEW system relations
+  stockBatches StockBatch[] @relation("BatchToUser")
 
   @@map("users")
 }
@@ -69,7 +75,11 @@ model Location {
   managerId String?
   manager   User? @relation(fields: [managerId], references: [id], onDelete: SetNull)
   
-  stockBatches StockBatch[] // Stock batches stored at this location
+  // OLD system relations (preserved for backward compatibility)
+  items        Item[]       @relation("ItemToLocation")
+  
+  // NEW system relations
+  stockBatches StockBatch[] @relation("BatchToLocation")
 
   @@map("locations")
 }
@@ -124,29 +134,53 @@ model Expense {
   @@map("expenses")
 }
 
-// Represents one item in the inventory, linked to a company, user, and location
+// Represents one item in the inventory
+// SAFE MIGRATION: Old columns preserved for data safety
 model Item {
   id                  String   @id @default(cuid())
   name                String
-  costPerUnitUSD      Float    // Base cost per unit
+  
+  // NEW: Batch system flag (enables gradual migration)
+  useBatchSystem      Boolean  @default(false)
+  
+  // BASE PRODUCT INFO (used by both systems)
+  costPerUnitUSD      Float    // Base/standard cost per unit
   sellingPriceSRD     Float    // Standard selling price
   supplier            String?  // Where the item is ordered from
   supplierSku         String?  // Supplier's product SKU/code
   profitMarginPercent Float?   // Profit margin percentage
   minStockLevel       Int?     // Minimum stock level for reorder alerts
   notes               String?  // Optional notes about the item
+  
+  // OLD SYSTEM COLUMNS (PRESERVED - DO NOT DELETE!)
+  // These remain for backward compatibility and data safety
+  status              Status?   @default(ToOrder)
+  quantityInStock     Int?      @default(0)
+  freightCostUSD      Float?    @default(0)
+  orderDate           DateTime?
+  expectedArrival     DateTime?
+  orderNumber         String?
+  assignedUserId      String?
+  locationId          String?
+  
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
-  batches StockBatch[] // Multiple batches of this item with different statuses and locations
+  // OLD system relations (preserved)
+  assignedUser User?     @relation("ItemToUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  location     Location? @relation("ItemToLocation", fields: [locationId], references: [id], onDelete: SetNull)
+  
+  // NEW system: Multiple batches per item
+  batches StockBatch[] @relation("ItemBatches")
 
   @@map("items")
 }
 
 // Represents a batch/lot of items with specific status and location
+// NEW: Enables multi-location and multi-status inventory tracking
 model StockBatch {
   id                String   @id @default(cuid())
   quantity          Int      @default(0)
@@ -162,13 +196,13 @@ model StockBatch {
   updatedAt         DateTime @updatedAt
 
   itemId String
-  item   Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  item   Item @relation("ItemBatches", fields: [itemId], references: [id], onDelete: Cascade)
   
   locationId String?
-  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  location   Location? @relation("BatchToLocation", fields: [locationId], references: [id], onDelete: SetNull)
   
   assignedUserId String?
-  assignedUser   User? @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  assignedUser   User? @relation("BatchToUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
 
   @@map("stock_batches")
 }
