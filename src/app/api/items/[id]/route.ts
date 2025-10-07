@@ -61,8 +61,9 @@ export async function PUT(
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
-    // Check if status is changing from "ToOrder" to "Ordered" - this triggers cash deduction
-    if (existingItem.status === 'ToOrder' && data.status === 'Ordered') {
+    // Check if status is changing TO "ToOrder" - this triggers cash deduction
+    // When you mark an item "To Order", you're committing to spend that money
+    if (existingItem.status !== 'ToOrder' && data.status === 'ToOrder') {
       if (!existingItem.company) {
         return NextResponse.json({ error: 'Company not found' }, { status: 404 })
       }
@@ -92,8 +93,9 @@ export async function PUT(
       })
     }
 
-    // Check if status is changing from "Ordered" back to "ToOrder" - this refunds the cash
-    if (existingItem.status === 'Ordered' && data.status === 'ToOrder') {
+    // Check if status is changing FROM "ToOrder" to something else - this refunds the cash
+    // If you cancel or change status away from "ToOrder", refund the reserved money
+    if (existingItem.status === 'ToOrder' && data.status !== 'ToOrder') {
       if (!existingItem.company) {
         return NextResponse.json({ error: 'Company not found' }, { status: 404 })
       }

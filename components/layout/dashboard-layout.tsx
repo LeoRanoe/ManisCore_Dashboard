@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { BarChart3, Package, Settings, Users, MapPin, Building2, Menu, X, DollarSign, LogOut } from 'lucide-react'
+import { BarChart3, Package, Settings, Users, MapPin, Building2, Menu, X, DollarSign, LogOut, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -31,6 +31,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       href: '/dashboard',
       label: 'Dashboard',
       icon: BarChart3
+    },
+    {
+      href: '/financial',
+      label: 'Financial',
+      icon: Wallet
     },
     {
       href: '/inventory',
