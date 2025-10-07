@@ -107,7 +107,7 @@ export function BatchTransferDialog({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          targetLocationId: data.targetLocationId,
+          toLocationId: data.targetLocationId,
           quantity: Number(data.quantity),
         }),
       })
