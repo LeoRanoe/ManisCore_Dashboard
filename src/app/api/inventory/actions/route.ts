@@ -97,11 +97,11 @@ export async function POST(request: NextRequest) {
             },
           })
 
-          // Create expense record for tracking the sale (negative expense = income)
+          // Create expense record for tracking the sale (positive amount = revenue/income)
           const saleRecord = await tx.expense.create({
             data: {
               description: `Sale of ${quantityToSell}x ${item.name}`,
-              amount: -totalRevenueSRD, // Negative to indicate income
+              amount: totalRevenueSRD, // Positive to indicate revenue/income
               currency: 'SRD',
               category: 'MISCELLANEOUS',
               notes: `Sold ${quantityToSell} units at ${finalSellingPriceSRD} SRD each. Profit: ${profitSRD.toFixed(2)} SRD`,

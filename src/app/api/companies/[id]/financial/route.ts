@@ -14,8 +14,6 @@ export async function GET(
         name: true,
         cashBalanceSRD: true,
         cashBalanceUSD: true,
-        stockValueSRD: true,
-        stockValueUSD: true,
       },
     })
 
@@ -23,18 +21,49 @@ export async function GET(
       return NextResponse.json({ error: 'Company not found' }, { status: 404 })
     }
 
+    // Calculate stock value dynamically from batches
+    // Get all batches for items belonging to this company where status is not "Sold"
+    const batches = await prisma.stockBatch.findMany({
+      where: {
+        item: {
+          companyId: params.id
+        },
+        status: {
+          in: ['ToOrder', 'Ordered', 'Arrived']
+        }
+      },
+      select: {
+        quantity: true,
+        costPerUnitUSD: true,
+        freightCostUSD: true,
+      }
+    })
+
+    // Calculate total stock value in USD
+    const stockValueUSD = batches.reduce((total, batch) => {
+      // Cost = (costPerUnit + freight per unit) * quantity
+      const costPerUnit = batch.costPerUnitUSD + (batch.freightCostUSD / batch.quantity)
+      return total + (costPerUnit * batch.quantity)
+    }, 0)
+
+    // Convert to SRD (1 USD = 40 SRD)
+    const exchangeRate = 40
+    const stockValueSRD = stockValueUSD * exchangeRate
+
     // Calculate total value in both currencies
-    const totalSRD = company.cashBalanceSRD + company.stockValueSRD
-    const totalUSD = company.cashBalanceUSD + company.stockValueUSD
+    const totalSRD = company.cashBalanceSRD + stockValueSRD
+    const totalUSD = company.cashBalanceUSD + stockValueUSD
     
-    // Convert USD to SRD for total calculation (1 USD = 40 SRD)
-    const totalValueSRD = totalSRD + (totalUSD * 40)
+    // Total value in SRD including USD converted
+    const totalValueSRD = totalSRD + (company.cashBalanceUSD * exchangeRate)
 
     return NextResponse.json({
       ...company,
-      totalValueSRD,
-      totalValueUSD: totalValueSRD / 40,
-      exchangeRate: 40,
+      stockValueSRD: Number(stockValueSRD.toFixed(2)),
+      stockValueUSD: Number(stockValueUSD.toFixed(2)),
+      totalValueSRD: Number(totalValueSRD.toFixed(2)),
+      totalValueUSD: Number((totalValueSRD / exchangeRate).toFixed(2)),
+      exchangeRate,
     })
   } catch (error) {
     console.error('Error fetching company financial data:', error)

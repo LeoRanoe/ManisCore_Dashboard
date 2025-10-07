@@ -316,23 +316,32 @@ function FinancialPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {expenses.map((expense) => (
-                        <TableRow key={expense.id}>
-                          <TableCell className="font-medium">{expense.description}</TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">{expense.category}</Badge>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {new Date(expense.date).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell className="text-right font-medium text-red-600">
-                            <div className="flex items-center justify-end gap-1">
-                              <ArrowDownRight className="h-3 w-3" />
-                              {expense.currency} {expense.amount.toFixed(2)}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {expenses.map((expense) => {
+                        // Check if this is a sale/income record
+                        const isIncome = expense.description.startsWith('Sale of')
+                        
+                        return (
+                          <TableRow key={expense.id}>
+                            <TableCell className="font-medium">{expense.description}</TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{expense.category}</Badge>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {new Date(expense.date).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className={`text-right font-medium ${isIncome ? 'text-green-600' : 'text-red-600'}`}>
+                              <div className="flex items-center justify-end gap-1">
+                                {isIncome ? (
+                                  <ArrowUpRight className="h-3 w-3" />
+                                ) : (
+                                  <ArrowDownRight className="h-3 w-3" />
+                                )}
+                                {expense.currency} {isIncome ? '+' : '-'}{Math.abs(expense.amount).toFixed(2)}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 </div>
