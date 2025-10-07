@@ -57,7 +57,7 @@ function FinancialPage() {
   const { toast } = useToast()
 
   const fetchFinancialData = async () => {
-    if (!selectedCompany) return
+    if (!selectedCompany || selectedCompany === "all") return
 
     setLoading(true)
     try {
@@ -94,7 +94,7 @@ function FinancialPage() {
     fetchFinancialData()
   }
 
-  if (!selectedCompany) {
+  if (!selectedCompany || selectedCompany === "all") {
     return (
       <div className="space-y-6 p-4 md:p-6">
         <div className="flex items-center justify-center h-[400px]">
