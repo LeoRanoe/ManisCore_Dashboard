@@ -58,11 +58,12 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Item not found' }, { status: 404 })
         }
 
-        if (item.quantityInStock < quantityToSell) {
+        const currentStock = item.quantityInStock || 0
+        if (currentStock < quantityToSell) {
           return NextResponse.json({ 
             error: 'Insufficient stock', 
-            message: `Cannot sell ${quantityToSell} items. Only ${item.quantityInStock} in stock.`,
-            available: item.quantityInStock,
+            message: `Cannot sell ${quantityToSell} items. Only ${currentStock} in stock.`,
+            available: currentStock,
             requested: quantityToSell,
           }, { status: 400 })
         }
@@ -79,11 +80,12 @@ export async function POST(request: NextRequest) {
         // Use transaction to update inventory and finances
         const result = await prisma.$transaction(async (tx) => {
           // Update item quantity
+          const newStock = currentStock - quantityToSell
           const updatedItem = await tx.item.update({
             where: { id: itemId },
             data: {
-              quantityInStock: item.quantityInStock - quantityToSell,
-              status: item.quantityInStock - quantityToSell === 0 ? 'Sold' : item.status,
+              quantityInStock: newStock,
+              status: newStock === 0 ? 'Sold' : (item.status || 'ToOrder'),
             },
           })
 
@@ -149,11 +151,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Update item quantity
+        const currentStock = item.quantityInStock || 0
+        const newStock = currentStock + quantityToAdd
         const updatedItem = await prisma.item.update({
           where: { id: itemId },
           data: {
-            quantityInStock: item.quantityInStock + quantityToAdd,
-            status: item.status === 'Sold' && item.quantityInStock + quantityToAdd > 0 ? 'Arrived' : item.status,
+            quantityInStock: newStock,
+            status: (item.status || 'ToOrder') === 'Sold' && newStock > 0 ? 'Arrived' : (item.status || 'ToOrder'),
           },
           include: {
             company: {
@@ -213,11 +217,12 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Item not found' }, { status: 404 })
         }
 
-        if (item.quantityInStock < quantityToRemove) {
+        const currentStock = item.quantityInStock || 0
+        if (currentStock < quantityToRemove) {
           return NextResponse.json({ 
             error: 'Insufficient stock', 
-            message: `Cannot remove ${quantityToRemove} items. Only ${item.quantityInStock} in stock.`,
-            available: item.quantityInStock,
+            message: `Cannot remove ${quantityToRemove} items. Only ${currentStock} in stock.`,
+            available: currentStock,
             requested: quantityToRemove,
           }, { status: 400 })
         }
@@ -229,11 +234,12 @@ export async function POST(request: NextRequest) {
         // Use transaction to update inventory and allocate cost to profit
         const result = await prisma.$transaction(async (tx) => {
           // Update item quantity
+          const newStock = currentStock - quantityToRemove
           const updatedItem = await tx.item.update({
             where: { id: itemId },
             data: {
-              quantityInStock: item.quantityInStock - quantityToRemove,
-              status: item.quantityInStock - quantityToRemove === 0 ? 'Sold' : item.status,
+              quantityInStock: newStock,
+              status: newStock === 0 ? 'Sold' : (item.status || 'ToOrder'),
             },
           })
 

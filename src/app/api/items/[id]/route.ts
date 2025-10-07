@@ -69,7 +69,9 @@ export async function PUT(
       }
 
       // Calculate total order cost (cost per unit + freight, multiplied by quantity)
-      const totalOrderCostUSD = (data.costPerUnitUSD * data.quantityInStock) + data.freightCostUSD
+      const quantityOrdered = data.quantityInStock || 0
+      const freightCost = data.freightCostUSD || 0
+      const totalOrderCostUSD = (data.costPerUnitUSD * quantityOrdered) + freightCost
 
       // Check if company has sufficient USD balance
       if (existingItem.company.cashBalanceUSD < totalOrderCostUSD) {
@@ -101,7 +103,9 @@ export async function PUT(
       }
 
       // Calculate the refund amount using existing item costs
-      const refundAmountUSD = (existingItem.costPerUnitUSD * existingItem.quantityInStock) + existingItem.freightCostUSD
+      const existingQty = existingItem.quantityInStock || 0
+      const existingFreight = existingItem.freightCostUSD || 0
+      const refundAmountUSD = (existingItem.costPerUnitUSD * existingQty) + existingFreight
 
       // Refund the cost to company's USD balance
       await prisma.company.update({

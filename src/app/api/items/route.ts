@@ -4,6 +4,61 @@ import { ItemFormSchema, ItemQuerySchema } from '@/lib/validations'
 
 export const dynamic = 'force-dynamic'
 
+// Helper function to aggregate batch data for items using batch system
+async function aggregateBatchDataForItems(items: any[]) {
+  const itemsUsingBatches = items.filter(item => item.useBatchSystem)
+  
+  if (itemsUsingBatches.length === 0) {
+    return items
+  }
+
+  // Fetch all batches for items using batch system
+  const batches = await prisma.$queryRaw<any[]>`
+    SELECT 
+      "itemId",
+      COUNT(*) as "batchCount",
+      SUM(quantity) as "totalQuantity",
+      COUNT(DISTINCT "locationId") as "locationCount",
+      COUNT(DISTINCT status) as "statusCount",
+      ARRAY_AGG(DISTINCT status) as "statuses",
+      ARRAY_AGG(DISTINCT "locationId") as "locationIds"
+    FROM stock_batches
+    WHERE "itemId" = ANY(${itemsUsingBatches.map(i => i.id)}::text[])
+    GROUP BY "itemId"
+  `
+
+  const batchDataMap = new Map(batches.map(b => [b.itemId, b]))
+
+  // Merge batch data into items
+  return items.map(item => {
+    if (!item.useBatchSystem) {
+      return item
+    }
+
+    const batchData = batchDataMap.get(item.id)
+    if (!batchData) {
+      return {
+        ...item,
+        quantityInStock: 0,
+        batchCount: 0,
+        locationCount: 0,
+        hasMultipleLocations: false,
+        hasMultipleStatuses: false,
+      }
+    }
+
+    return {
+      ...item,
+      quantityInStock: Number(batchData.totalQuantity) || 0,
+      batchCount: Number(batchData.batchCount) || 0,
+      locationCount: Number(batchData.locationCount) || 0,
+      hasMultipleLocations: Number(batchData.locationCount) > 1,
+      hasMultipleStatuses: Number(batchData.statusCount) > 1,
+      statuses: batchData.statuses?.filter(Boolean) || [],
+    }
+  })
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl
@@ -80,15 +135,20 @@ export async function GET(request: NextRequest) {
       prisma.item.count({ where }),
     ])
 
+    // Aggregate batch data for items using batch system
+    const itemsWithBatchData = await aggregateBatchDataForItems(items)
+
     // Calculate additional fields for each item
-    const itemsWithCalculations = items.map(item => {
+    const itemsWithCalculations = itemsWithBatchData.map(item => {
+      const quantityInStock = item.quantityInStock || 0
+      const freightCostUSD = item.freightCostUSD || 0
       // Freight cost is now total per order, so divide by quantity for per-unit cost
-      const freightPerUnitUSD = item.quantityInStock > 0 ? item.freightCostUSD / item.quantityInStock : 0
+      const freightPerUnitUSD = quantityInStock > 0 ? freightCostUSD / quantityInStock : 0
       const totalCostPerUnitUSD = item.costPerUnitUSD + freightPerUnitUSD
       const usdToSrdRate = 40 // Approximate exchange rate
       const totalCostPerUnitSRD = totalCostPerUnitUSD * usdToSrdRate
       const profitPerUnitSRD = item.sellingPriceSRD - totalCostPerUnitSRD
-      const totalProfitSRD = profitPerUnitSRD * item.quantityInStock
+      const totalProfitSRD = profitPerUnitSRD * quantityInStock
 
       return {
         ...item,
@@ -252,7 +312,9 @@ export async function POST(request: NextRequest) {
       }
 
       // Calculate total order cost (cost per unit + freight, multiplied by quantity)
-      const totalOrderCostUSD = (data.costPerUnitUSD * data.quantityInStock) + data.freightCostUSD
+      const quantityOrdered = data.quantityInStock || 0
+      const freightCost = data.freightCostUSD || 0
+      const totalOrderCostUSD = (data.costPerUnitUSD * quantityOrdered) + freightCost
       console.log(`💵 Order cost: $${totalOrderCostUSD}, Available: $${company.cashBalanceUSD}`)
 
       // Only deduct for "Ordered" status (ToOrder doesn't deduct yet)
@@ -289,14 +351,19 @@ export async function POST(request: NextRequest) {
       if (existingItem && (data.status === 'ToOrder' || data.status === 'Ordered')) {
         console.log(`♻️ Found existing item "${existingItem.name}" (ID: ${existingItem.id}). Updating instead of creating duplicate...`)
         
+        const existingQty = existingItem.quantityInStock || 0
+        const newQty = data.quantityInStock || 0
+        const existingFreight = existingItem.freightCostUSD || 0
+        const newFreight = data.freightCostUSD || 0
+        
         // Calculate weighted average for cost per unit (if prices differ)
-        const existingTotalCost = existingItem.costPerUnitUSD * existingItem.quantityInStock
-        const newTotalCost = data.costPerUnitUSD * data.quantityInStock
-        const combinedQuantity = existingItem.quantityInStock + data.quantityInStock
+        const existingTotalCost = existingItem.costPerUnitUSD * existingQty
+        const newTotalCost = data.costPerUnitUSD * newQty
+        const combinedQuantity = existingQty + newQty
         const weightedAvgCostPerUnit = (existingTotalCost + newTotalCost) / combinedQuantity
         
         // Calculate weighted average for freight cost
-        const weightedAvgFreightCost = (existingItem.freightCostUSD + data.freightCostUSD) / 2
+        const weightedAvgFreightCost = (existingFreight + newFreight) / 2
         
         item = await prisma.item.update({
           where: { id: existingItem.id },

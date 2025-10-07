@@ -65,7 +65,8 @@ export async function GET(request: NextRequest) {
 
     // Count items by status
     const itemCountByStatus = items.reduce((counts, item) => {
-      counts[item.status] = (counts[item.status] || 0) + 1
+      const status = item.status || 'ToOrder'
+      counts[status] = (counts[status] || 0) + 1
       return counts
     }, {} as Record<string, number>)
 
@@ -141,7 +142,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get low stock items (quantity < 5)
-    const lowStockItems = items.filter(item => item.quantityInStock < 5).slice(0, 10)
+    const lowStockItems = items.filter(item => (item.quantityInStock || 0) < 5).slice(0, 10)
 
     return NextResponse.json({
       totalStockValueUSD: Number(totalStockValueUSD.toFixed(2)),

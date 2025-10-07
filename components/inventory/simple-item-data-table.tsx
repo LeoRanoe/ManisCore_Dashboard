@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowUpDown, Edit, Trash2 } from "lucide-react"
+import { ArrowUpDown, Edit, Trash2, Package, MapPin } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -38,6 +38,12 @@ interface Item {
   companyId: string
   assignedUserId?: string
   locationId?: string
+  useBatchSystem?: boolean
+  batchCount?: number
+  locationCount?: number
+  hasMultipleLocations?: boolean
+  hasMultipleStatuses?: boolean
+  statuses?: string[]
   company: {
     id: string
     name: string
@@ -153,16 +159,34 @@ export function SimpleItemDataTable({
               <TableRow key={item.id}>
                 <TableCell>
                   <div>
-                    <div className="font-medium">{item.name}</div>
+                    <div className="font-medium flex items-center gap-2">
+                      {item.name}
+                      {item.useBatchSystem && (
+                        <Badge variant="outline" className="text-xs">
+                          <Package className="h-3 w-3 mr-1" />
+                          {item.batchCount || 0} batches
+                        </Badge>
+                      )}
+                    </div>
                     <div className="text-sm text-muted-foreground">
                       {item.company.name}
                     </div>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={statusConfig[item.status].variant}>
-                    {statusConfig[item.status].label}
-                  </Badge>
+                  {item.hasMultipleStatuses ? (
+                    <div className="flex flex-col gap-1">
+                      {item.statuses?.map((status, idx) => (
+                        <Badge key={idx} variant={statusConfig[status as keyof typeof statusConfig]?.variant || "secondary"} className="text-xs">
+                          {statusConfig[status as keyof typeof statusConfig]?.label || status}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <Badge variant={statusConfig[item.status].variant}>
+                      {statusConfig[item.status].label}
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-col">
@@ -175,7 +199,12 @@ export function SimpleItemDataTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  {item.location ? (
+                  {item.hasMultipleLocations ? (
+                    <div className="flex items-center gap-1 text-sm">
+                      <MapPin className="h-3 w-3" />
+                      <span className="font-medium">{item.locationCount} locations</span>
+                    </div>
+                  ) : item.location ? (
                     <span className="text-sm">{item.location.name}</span>
                   ) : (
                     <span className="text-sm text-muted-foreground">No location</span>

@@ -91,6 +91,11 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'No items found to delete' }, { status: 404 })
         }
 
+        // Log items being deleted (handle nullable quantities)
+        itemsToDelete.forEach(item => {
+          console.log(`Deleting: ${item.name} (Qty: ${item.quantityInStock || 0})`)
+        })
+
         // Delete items
         const deletedResult = await prisma.item.deleteMany({
           where: { id: { in: validation.data.ids } },
