@@ -102,7 +102,6 @@ export function ItemFormDialog({
       status: item.status,
       quantityInStock: item.quantityInStock,
       costPerUnitUSD: item.costPerUnitUSD,
-      freightCostUSD: item.freightCostUSD,
       sellingPriceSRD: item.sellingPriceSRD,
       supplier: (item as any).supplier || "",
       supplierSku: (item as any).supplierSku || "",
@@ -146,7 +145,6 @@ export function ItemFormDialog({
           status: item.status,
           quantityInStock: item.quantityInStock,
           costPerUnitUSD: item.costPerUnitUSD,
-          freightCostUSD: item.freightCostUSD,
           sellingPriceSRD: item.sellingPriceSRD,
           supplier: (item as any).supplier || "",
           supplierSku: (item as any).supplierSku || "",
@@ -167,7 +165,6 @@ export function ItemFormDialog({
           status: "ToOrder",
           quantityInStock: 0,
           costPerUnitUSD: 0,
-          freightCostUSD: 0,
           sellingPriceSRD: 0,
           supplier: "",
           supplierSku: "",
@@ -238,7 +235,6 @@ export function ItemFormDialog({
         status: data.status,
         quantityInStock: data.quantityInStock,
         costPerUnitUSD: data.costPerUnitUSD,
-        freightCostUSD: data.freightCostUSD,
         sellingPriceSRD: data.sellingPriceSRD,
         companyId: data.companyId,
       }
@@ -324,7 +320,6 @@ export function ItemFormDialog({
           status: "ToOrder",
           quantityInStock: 0,
           costPerUnitUSD: 0,
-          freightCostUSD: 0,
           sellingPriceSRD: 0,
           supplier: "",
           supplierSku: "",
@@ -497,7 +492,7 @@ export function ItemFormDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="costPerUnitUSD">Cost per Unit (USD)</Label>
               <Input
@@ -510,22 +505,6 @@ export function ItemFormDialog({
               {errors.costPerUnitUSD && (
                 <p className="text-sm text-red-500">
                   {errors.costPerUnitUSD.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="freightCostUSD">Freight Cost (USD)</Label>
-              <Input
-                id="freightCostUSD"
-                type="number"
-                step="0.01"
-                {...register("freightCostUSD", { valueAsNumber: true })}
-                placeholder="0.00"
-              />
-              {errors.freightCostUSD && (
-                <p className="text-sm text-red-500">
-                  {errors.freightCostUSD.message}
                 </p>
               )}
             </div>
@@ -554,9 +533,8 @@ export function ItemFormDialog({
               {(() => {
                 const selectedCompany = companies.find(c => c.id === watchedCompanyId)
                 const costPerUnit = Number(watch("costPerUnitUSD")) || 0
-                const freight = Number(watch("freightCostUSD")) || 0
                 const quantity = Number(watch("quantityInStock")) || 0
-                const totalCost = (costPerUnit * quantity) + freight
+                const totalCost = costPerUnit * quantity
                 
                 return (
                   <div className="space-y-2 text-sm">
@@ -568,14 +546,13 @@ export function ItemFormDialog({
                       <span>Quantity:</span>
                       <span>{quantity}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Freight cost:</span>
-                      <span>${freight.toFixed(2)}</span>
-                    </div>
                     <div className="flex justify-between border-t pt-2 font-medium">
                       <span>Total order cost:</span>
                       <span>${totalCost.toFixed(2)}</span>
                     </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Note: Freight costs will be added later based on actual shipping weight
+                    </p>
                     {selectedCompany?.cashBalanceUSD !== undefined && (
                       <>
                         <div className="flex justify-between">

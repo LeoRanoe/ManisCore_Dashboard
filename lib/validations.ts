@@ -10,7 +10,7 @@ export const ItemFormSchema = z.object({
   status: StatusEnum,
   quantityInStock: z.number().int().min(0, 'Quantity must be non-negative'),
   costPerUnitUSD: z.number().min(0, 'Cost must be non-negative'),
-  freightCostUSD: z.number().min(0, 'Freight cost must be non-negative'),
+  freightCostUSD: z.number().min(0, 'Freight cost must be non-negative').default(0).optional(),
   sellingPriceSRD: z.number().min(0, 'Selling price must be non-negative'),
   supplier: z.string().optional().nullable(),
   supplierSku: z.string().optional().nullable(),

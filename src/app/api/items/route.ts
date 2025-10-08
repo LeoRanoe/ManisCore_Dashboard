@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
       status: data.status,
       quantityInStock: data.quantityInStock,
       costPerUnitUSD: data.costPerUnitUSD,
-      freightCostUSD: data.freightCostUSD,
+      freightCostUSD: data.freightCostUSD || 0, // Default to 0 if not provided
       sellingPriceSRD: data.sellingPriceSRD,
       companyId: data.companyId,
     }
@@ -312,10 +312,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Company not found' }, { status: 404 })
       }
 
-      // Calculate total order cost (cost per unit + freight, multiplied by quantity)
+      // Calculate total order cost (cost per unit multiplied by quantity, freight will be added later)
       const quantityOrdered = data.quantityInStock || 0
-      const freightCost = data.freightCostUSD || 0
-      const totalOrderCostUSD = (data.costPerUnitUSD * quantityOrdered) + freightCost
+      const totalOrderCostUSD = data.costPerUnitUSD * quantityOrdered
       console.log(`💵 Order cost: $${totalOrderCostUSD}, Available: $${company.cashBalanceUSD}`)
 
       // Only deduct for "Ordered" status (ToOrder doesn't deduct yet)

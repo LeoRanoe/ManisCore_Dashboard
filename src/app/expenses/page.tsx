@@ -30,10 +30,22 @@ function ExpensesPage() {
 
   // Calculate metrics
   const metrics = useMemo(() => {
-    const totalSRD = expenses.reduce((sum: number, exp: any) => 
-      exp.currency === "SRD" ? sum + exp.amount : sum, 0)
-    const totalUSD = expenses.reduce((sum: number, exp: any) => 
-      exp.currency === "USD" ? sum + exp.amount : sum, 0)
+    // Separate income and expenses
+    const income = expenses.filter((exp: any) => exp.amount > 0)
+    const expensesList = expenses.filter((exp: any) => exp.amount < 0)
+    
+    const totalIncomeSRD = income.reduce((sum: number, exp: any) => 
+      exp.currency === "SRD" ? sum + Math.abs(exp.amount) : sum, 0)
+    const totalIncomeUSD = income.reduce((sum: number, exp: any) => 
+      exp.currency === "USD" ? sum + Math.abs(exp.amount) : sum, 0)
+    
+    const totalExpensesSRD = expensesList.reduce((sum: number, exp: any) => 
+      exp.currency === "SRD" ? sum + Math.abs(exp.amount) : sum, 0)
+    const totalExpensesUSD = expensesList.reduce((sum: number, exp: any) => 
+      exp.currency === "USD" ? sum + Math.abs(exp.amount) : sum, 0)
+    
+    const netSRD = totalIncomeSRD - totalExpensesSRD
+    const netUSD = totalIncomeUSD - totalExpensesUSD
     
     // Calculate this month vs last month
     const now = new Date()
@@ -47,17 +59,26 @@ function ExpensesPage() {
       return expDate.getMonth() === lastMonthDate.getMonth() && expDate.getFullYear() === lastMonthDate.getFullYear()
     })
 
-    const thisMonthTotal = thisMonth.reduce((sum: number, exp: any) => sum + exp.amount, 0)
-    const lastMonthTotal = lastMonth.reduce((sum: number, exp: any) => sum + exp.amount, 0)
+    const thisMonthExpenses = thisMonth.filter((exp: any) => exp.amount < 0)
+    const lastMonthExpenses = lastMonth.filter((exp: any) => exp.amount < 0)
+    
+    const thisMonthTotal = thisMonthExpenses.reduce((sum: number, exp: any) => sum + Math.abs(exp.amount), 0)
+    const lastMonthTotal = lastMonthExpenses.reduce((sum: number, exp: any) => sum + Math.abs(exp.amount), 0)
     const percentageChange = lastMonthTotal > 0 ? ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100 : 0
 
     return {
-      totalSRD,
-      totalUSD,
+      totalIncomeSRD,
+      totalIncomeUSD,
+      totalExpensesSRD,
+      totalExpensesUSD,
+      netSRD,
+      netUSD,
       thisMonthTotal,
       lastMonthTotal,
       percentageChange,
       expenseCount: expenses.length,
+      incomeCount: income.length,
+      expensesCount: expensesList.length,
     }
   }, [expenses])
 
@@ -104,15 +125,15 @@ function ExpensesPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Expenses (SRD)</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <TrendingDown className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
             {expensesLoading ? (
               <Skeleton className="h-8 w-full" />
             ) : (
               <>
-                <div className="text-2xl font-bold">SRD {metrics.totalSRD.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">Surinamese Dollar</p>
+                <div className="text-2xl font-bold text-red-600">SRD {metrics.totalExpensesSRD.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">{metrics.expensesCount} expense transactions</p>
               </>
             )}
           </CardContent>
@@ -120,16 +141,16 @@ function ExpensesPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Expenses (USD)</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Income (SRD)</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             {expensesLoading ? (
               <Skeleton className="h-8 w-full" />
             ) : (
               <>
-                <div className="text-2xl font-bold">${metrics.totalUSD.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">US Dollar</p>
+                <div className="text-2xl font-bold text-green-600">SRD {metrics.totalIncomeSRD.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">{metrics.incomeCount} income transactions</p>
               </>
             )}
           </CardContent>
@@ -137,7 +158,26 @@ function ExpensesPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Month</CardTitle>
+            <CardTitle className="text-sm font-medium">Net (SRD)</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {expensesLoading ? (
+              <Skeleton className="h-8 w-full" />
+            ) : (
+              <>
+                <div className={`text-2xl font-bold ${metrics.netSRD >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {metrics.netSRD >= 0 ? '+' : ''}SRD {metrics.netSRD.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">Income - Expenses</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">This Month Expenses</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -145,7 +185,7 @@ function ExpensesPage() {
               <Skeleton className="h-8 w-full" />
             ) : (
               <>
-                <div className="text-2xl font-bold">${metrics.thisMonthTotal.toFixed(2)}</div>
+                <div className="text-2xl font-bold text-red-600">SRD {metrics.thisMonthTotal.toFixed(2)}</div>
                 <p className={`text-xs flex items-center gap-1 ${metrics.percentageChange > 0 ? 'text-red-600' : 'text-green-600'}`}>
                   {metrics.percentageChange > 0 ? (
                     <TrendingUp className="h-3 w-3" />
@@ -154,23 +194,6 @@ function ExpensesPage() {
                   )}
                   {Math.abs(metrics.percentageChange).toFixed(1)}% from last month
                 </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Count</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {expensesLoading ? (
-              <Skeleton className="h-8 w-full" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{metrics.expenseCount}</div>
-                <p className="text-xs text-muted-foreground">Total expenses recorded</p>
               </>
             )}
           </CardContent>

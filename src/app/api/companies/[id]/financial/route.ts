@@ -22,15 +22,15 @@ export async function GET(
     }
 
     // Calculate stock value dynamically from batches
-    // Get all batches for items belonging to this company where status is not "Sold"
+    // Get all batches for items belonging to this company
+    // Only count "Arrived" items as actual stock value
+    // "ToOrder" and "Ordered" items are not yet in stock, so they shouldn't count toward stock value
     const batches = await prisma.stockBatch.findMany({
       where: {
         item: {
           companyId: params.id
         },
-        status: {
-          in: ['ToOrder', 'Ordered', 'Arrived']
-        }
+        status: 'Arrived' // Only count items that have arrived
       },
       select: {
         quantity: true,
