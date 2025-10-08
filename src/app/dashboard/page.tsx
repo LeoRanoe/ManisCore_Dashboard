@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { DollarSign, Package, TrendingUp, AlertTriangle, Building2, Users, MapPin, Coins, Receipt } from "lucide-react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
+import { formatCurrencyWithSign } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -449,8 +450,14 @@ function DashboardPage() {
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {formatCurrency(
+                <div className={`text-2xl font-bold ${
+                  ((financialSummary.totalCashSRD + financialSummary.totalStockValueSRD) + 
+                  ((financialSummary.totalCashUSD + financialSummary.totalStockValueUSD) * 40) - 
+                  (financialSummary.totalExpensesSRD + (financialSummary.totalExpensesUSD * 40))) >= 0
+                    ? 'text-green-600' 
+                    : 'text-red-600'
+                }`}>
+                  {formatCurrencyWithSign(
                     (financialSummary.totalCashSRD + financialSummary.totalStockValueSRD) + 
                     ((financialSummary.totalCashUSD + financialSummary.totalStockValueUSD) * 40) - 
                     (financialSummary.totalExpensesSRD + (financialSummary.totalExpensesUSD * 40)), 

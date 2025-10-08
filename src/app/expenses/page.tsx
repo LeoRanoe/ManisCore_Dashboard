@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { ExpenseDataTable } from "@/components/expenses/expense-data-table"
 import { ExpenseFormDialog } from "@/components/expenses/expense-form-dialog"
 import { useExpenses, useApi } from "@/lib/hooks"
+import { formatCurrencyWithSign } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -167,7 +168,7 @@ function ExpensesPage() {
             ) : (
               <>
                 <div className={`text-2xl font-bold ${metrics.netSRD >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {metrics.netSRD >= 0 ? '+' : ''}SRD {metrics.netSRD.toFixed(2)}
+                  {formatCurrencyWithSign(metrics.netSRD, 'SRD')}
                 </div>
                 <p className="text-xs text-muted-foreground">Income - Expenses</p>
               </>

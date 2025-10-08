@@ -7,6 +7,30 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Formats currency with proper sign handling
+ * - Shows no sign for zero values
+ * - Shows + for positive values
+ * - Shows - for negative values
+ * @param amount The amount to format
+ * @param currency The currency code (SRD or USD)
+ * @returns Formatted string with proper sign
+ */
+export function formatCurrencyWithSign(amount: number, currency: 'SRD' | 'USD' = 'SRD'): string {
+  const absAmount = Math.abs(amount)
+  const formatted = currency === 'USD' 
+    ? `$${absAmount.toFixed(2)}`
+    : `SRD ${absAmount.toFixed(2)}`
+  
+  if (amount === 0) {
+    return formatted // No sign for zero
+  } else if (amount > 0) {
+    return `+${formatted}` // Plus sign for positive
+  } else {
+    return `-${formatted}` // Minus sign for negative
+  }
+}
+
+/**
  * Synchronizes item.quantityInStock with the sum of all batch quantities
  * This ensures items and batches are always consistent
  * @param itemId The ID of the item to synchronize
