@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { syncItemQuantityFromBatches } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -129,6 +130,9 @@ export async function POST(request: NextRequest) {
         assignedUser: true
       }
     })
+
+    // Sync item quantity from all batches
+    await syncItemQuantityFromBatches(itemId)
 
     return NextResponse.json(batch, { status: 201 })
   } catch (error) {

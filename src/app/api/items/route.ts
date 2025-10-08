@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { ItemFormSchema, ItemQuerySchema } from '@/lib/validations'
+import { syncItemQuantityFromBatches } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -453,6 +454,16 @@ export async function POST(request: NextRequest) {
         meta: prismaError?.meta,
         prismaData: prismaData,  // Include what we tried to save
       }, { status: 500 })
+    }
+
+    // Sync item quantity from batches if using batch system
+    if (item.useBatchSystem) {
+      try {
+        await syncItemQuantityFromBatches(item.id)
+      } catch (syncError) {
+        console.warn('⚠️ Failed to sync item quantity from batches:', syncError)
+        // Don't fail the request if sync fails
+      }
     }
 
     return NextResponse.json(item, { status: 201 })

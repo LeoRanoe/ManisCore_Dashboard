@@ -135,13 +135,14 @@ model Expense {
 }
 
 // Represents one item in the inventory
-// SAFE MIGRATION: Old columns preserved for data safety
+// BATCH SYSTEM: Items and Batches are synchronized
+// quantityInStock = SUM of all batch quantities for this item
 model Item {
   id                  String   @id @default(cuid())
   name                String
   
-  // NEW: Batch system flag (enables gradual migration)
-  useBatchSystem      Boolean  @default(false)
+  // BATCH SYSTEM: Enabled by default - all items use batches
+  useBatchSystem      Boolean  @default(true)
   
   // BASE PRODUCT INFO (used by both systems)
   costPerUnitUSD      Float    // Base/standard cost per unit
@@ -152,16 +153,17 @@ model Item {
   minStockLevel       Int?     // Minimum stock level for reorder alerts
   notes               String?  // Optional notes about the item
   
-  // OLD SYSTEM COLUMNS (PRESERVED - DO NOT DELETE!)
-  // These remain for backward compatibility and data safety
+  // SYNCHRONIZED COLUMNS (auto-calculated from batches)
+  // IMPORTANT: These are kept in sync with batch data via middleware
+  // For batch-system items: quantityInStock = SUM(batch.quantity)
   status              Status?   @default(ToOrder)
-  quantityInStock     Int?      @default(0)
+  quantityInStock     Int?      @default(0) // Auto-synced from batches
   freightCostUSD      Float?    @default(0)
   orderDate           DateTime?
   expectedArrival     DateTime?
   orderNumber         String?
-  assignedUserId      String?
-  locationId          String?
+  assignedUserId      String?  // For non-batch items compatibility
+  locationId          String?  // For non-batch items compatibility
   
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt

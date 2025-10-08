@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { ItemFormSchema } from '@/lib/validations'
+import { syncItemQuantityFromBatches } from '@/lib/utils'
 
 export async function PUT(
   request: NextRequest,
@@ -143,6 +144,16 @@ export async function PUT(
         },
       },
     })
+
+    // Sync item quantity from batches if using batch system
+    if (updatedItem.useBatchSystem) {
+      try {
+        await syncItemQuantityFromBatches(updatedItem.id)
+      } catch (syncError) {
+        console.warn('⚠️ Failed to sync item quantity from batches:', syncError)
+        // Don't fail the request if sync fails
+      }
+    }
 
     return NextResponse.json(updatedItem)
   } catch (error) {

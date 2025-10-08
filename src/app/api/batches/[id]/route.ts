@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { syncItemQuantityFromBatches } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -129,6 +130,9 @@ export async function PATCH(
       }
     })
 
+    // Sync item quantity from all batches
+    await syncItemQuantityFromBatches(updatedBatch.itemId)
+
     return NextResponse.json(updatedBatch)
   } catch (error) {
     console.error('Error updating batch:', error)
@@ -170,6 +174,9 @@ export async function DELETE(
     await prisma.stockBatch.delete({
       where: { id: params.id }
     })
+
+    // Sync item quantity from remaining batches
+    await syncItemQuantityFromBatches(batch.itemId)
 
     return NextResponse.json({
       message: 'Batch deleted successfully',

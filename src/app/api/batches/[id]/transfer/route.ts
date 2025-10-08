@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { syncItemQuantityFromBatches } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -101,6 +102,9 @@ export async function POST(
         transferredAmount: transferQuantity
       })
     }
+    
+    // Note: Quantity doesn't change during transfer, only location changes
+    // So no need to sync item quantity here
   } catch (error) {
     console.error('Error transferring batch:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
