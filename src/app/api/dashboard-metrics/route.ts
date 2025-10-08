@@ -61,8 +61,8 @@ export async function GET(request: NextRequest) {
 
     // Calculate total stock value in USD (only count "Arrived" items)
     const totalStockValueUSD = items.reduce((total: number, item: any) => {
-      if (item.useBatchSystem && item.batches.length > 0) {
-        // Use batch system
+      if (item.useBatchSystem && item.batches && item.batches.length > 0) {
+        // Use batch system - only count batches with "Arrived" status
         const arrivedBatches = item.batches.filter((b: any) => b.status === 'Arrived')
         const batchValue = arrivedBatches.reduce((sum: number, batch: any) => {
           const freightPerUnit = batch.quantity > 0 ? (batch.freightCostUSD / batch.quantity) : 0
@@ -71,7 +71,8 @@ export async function GET(request: NextRequest) {
         }, 0)
         return total + batchValue
       } else {
-        // Legacy system - only count if status is "Arrived"
+        // Legacy system OR items not yet migrated to batches
+        // Only count if status is "Arrived"
         if (item.status === 'Arrived') {
           const quantity = item.quantityInStock || 0
           const freightCost = item.freightCostUSD || 0

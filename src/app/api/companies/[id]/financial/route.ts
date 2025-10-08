@@ -37,17 +37,24 @@ export async function GET(
       }
     })
 
-    // Also get legacy items (not using batch system) that have arrived
+    // Get items that DON'T use batch system OR have useBatchSystem=true but no actual batches
+    // These are legacy items that should be counted based on their direct quantityInStock
     const legacyItems = await prisma.item.findMany({
       where: {
         companyId: params.id,
         status: 'Arrived',
-        useBatchSystem: false
       },
       select: {
+        id: true,
         quantityInStock: true,
         costPerUnitUSD: true,
         freightCostUSD: true,
+        useBatchSystem: true,
+        batches: {
+          select: {
+            id: true
+          }
+        }
       }
     })
 
@@ -60,7 +67,15 @@ export async function GET(
     }, 0)
 
     // Calculate total stock value in USD from legacy items
+    // Only count items that either:
+    // 1. Have useBatchSystem=false (old system)
+    // 2. Have useBatchSystem=true but NO batches (not yet migrated)
     const legacyStockValueUSD = legacyItems.reduce((total, item) => {
+      // Skip items that have batches - they're counted above
+      if (item.batches && item.batches.length > 0) {
+        return total
+      }
+      
       // Cost = (costPerUnit + freight per unit) * quantity
       const quantity = item.quantityInStock || 0
       const freightCost = item.freightCostUSD || 0
@@ -70,6 +85,16 @@ export async function GET(
     }, 0)
 
     const stockValueUSD = batchStockValueUSD + legacyStockValueUSD
+
+    // Debug logging
+    console.log(`[Financial API] Company ${params.id}:`)
+    console.log(`  - Batches found: ${batches.length}`)
+    console.log(`  - Batch stock value USD: $${batchStockValueUSD.toFixed(2)}`)
+    console.log(`  - Legacy items found: ${legacyItems.length}`)
+    console.log(`  - Legacy items with batches: ${legacyItems.filter(i => i.batches.length > 0).length}`)
+    console.log(`  - Legacy items without batches: ${legacyItems.filter(i => i.batches.length === 0).length}`)
+    console.log(`  - Legacy stock value USD: $${legacyStockValueUSD.toFixed(2)}`)
+    console.log(`  - Total stock value USD: $${stockValueUSD.toFixed(2)}`)
 
     // Convert to SRD (1 USD = 40 SRD)
     const exchangeRate = 40
