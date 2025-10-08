@@ -427,13 +427,31 @@ export function ItemFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="quantityInStock">Quantity in Stock</Label>
+              <Label htmlFor="quantityInStock">
+                Quantity in Stock
+                {item && (item as any).useBatchSystem && (item as any).batchCount > 0 && (
+                  <span className="text-xs text-muted-foreground ml-2">
+                    (Managed by {(item as any).batchCount} batch{(item as any).batchCount !== 1 ? 'es' : ''})
+                  </span>
+                )}
+              </Label>
               <Input
                 id="quantityInStock"
                 type="number"
                 {...register("quantityInStock", { valueAsNumber: true })}
                 placeholder="0"
+                disabled={item && (item as any).useBatchSystem && (item as any).batchCount > 0}
+                title={
+                  item && (item as any).useBatchSystem && (item as any).batchCount > 0
+                    ? "This item uses the batch system. Manage quantities through the Manage Stock page."
+                    : ""
+                }
               />
+              {item && (item as any).useBatchSystem && (item as any).batchCount > 0 && (
+                <p className="text-xs text-blue-600">
+                  💡 This item uses batches. Go to "Manage Stock" to add/remove/transfer batches.
+                </p>
+              )}
               {errors.quantityInStock && (
                 <p className="text-sm text-red-500">
                   {errors.quantityInStock.message}
@@ -468,11 +486,18 @@ export function ItemFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="locationId">Location</Label>
+              <Label htmlFor="locationId">
+                Location
+                {item && (item as any).useBatchSystem && (item as any).batchCount > 0 && (
+                  <span className="text-xs text-muted-foreground ml-2">
+                    ({(item as any).locationCount > 1 ? `${(item as any).locationCount} locations` : '1 location'})
+                  </span>
+                )}
+              </Label>
               <Select
                 value={watch("locationId") || ""}
                 onValueChange={(value) => setValue("locationId", value)}
-                disabled={!watchedCompanyId}
+                disabled={!watchedCompanyId || (item && (item as any).useBatchSystem && (item as any).batchCount > 0)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={watchedCompanyId ? "Select location" : "Select company first"} />
@@ -486,6 +511,11 @@ export function ItemFormDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {item && (item as any).useBatchSystem && (item as any).batchCount > 0 && (
+                <p className="text-xs text-blue-600">
+                  💡 Use the "Move" button in Items by Location to transfer batches between locations.
+                </p>
+              )}
               {errors.locationId && (
                 <p className="text-sm text-red-500">{errors.locationId.message}</p>
               )}

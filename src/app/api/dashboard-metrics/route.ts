@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
+            cashBalanceSRD: true,
+            cashBalanceUSD: true,
           },
         },
         assignedUser: {
@@ -45,21 +47,68 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
+        batches: {
+          select: {
+            id: true,
+            quantity: true,
+            status: true,
+            costPerUnitUSD: true,
+            freightCostUSD: true,
+          }
+        }
       },
     })
 
-    // Calculate total stock value in USD
+    // Calculate total stock value in USD (only count "Arrived" items)
     const totalStockValueUSD = items.reduce((total: number, item: any) => {
-      return total + (item.costPerUnitUSD + (item.freightCostUSD / Math.max(item.quantityInStock, 1))) * item.quantityInStock
+      if (item.useBatchSystem && item.batches.length > 0) {
+        // Use batch system
+        const arrivedBatches = item.batches.filter((b: any) => b.status === 'Arrived')
+        const batchValue = arrivedBatches.reduce((sum: number, batch: any) => {
+          const freightPerUnit = batch.quantity > 0 ? (batch.freightCostUSD / batch.quantity) : 0
+          const costPerUnit = batch.costPerUnitUSD + freightPerUnit
+          return sum + (costPerUnit * batch.quantity)
+        }, 0)
+        return total + batchValue
+      } else {
+        // Legacy system - only count if status is "Arrived"
+        if (item.status === 'Arrived') {
+          const quantity = item.quantityInStock || 0
+          const freightCost = item.freightCostUSD || 0
+          const freightPerUnit = quantity > 0 ? (freightCost / quantity) : 0
+          const costPerUnit = item.costPerUnitUSD + freightPerUnit
+          return total + (costPerUnit * quantity)
+        }
+        return total
+      }
     }, 0)
+
+    // Get total cash for selected company
+    let totalCashSRD = 0
+    let totalCashUSD = 0
+    if (companyId && companyId !== 'all') {
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          cashBalanceSRD: true,
+          cashBalanceUSD: true,
+        }
+      })
+      if (company) {
+        totalCashSRD = company.cashBalanceSRD
+        totalCashUSD = company.cashBalanceUSD
+      }
+    }
+
+    const usdToSrdRate = 40
+    const totalStockValueSRD = totalStockValueUSD * usdToSrdRate
 
     // Calculate total potential revenue in SRD
     const totalPotentialRevenueSRD = items.reduce((total: number, item: any) => {
       return total + item.sellingPriceSRD * item.quantityInStock
     }, 0)
 
-    // Calculate total potential profit in SRD (approximation - assuming 1 USD = 40 SRD for conversion)
-    const usdToSrdRate = 40
+    // Calculate total potential profit in SRD
     const totalCostInSRD = totalStockValueUSD * usdToSrdRate
     const totalPotentialProfitSRD = totalPotentialRevenueSRD - totalCostInSRD
 
@@ -145,7 +194,10 @@ export async function GET(request: NextRequest) {
     const lowStockItems = items.filter(item => (item.quantityInStock || 0) < 5).slice(0, 10)
 
     return NextResponse.json({
+      totalCashSRD: Number(totalCashSRD.toFixed(2)),
+      totalCashUSD: Number(totalCashUSD.toFixed(2)),
       totalStockValueUSD: Number(totalStockValueUSD.toFixed(2)),
+      totalStockValueSRD: Number(totalStockValueSRD.toFixed(2)),
       totalPotentialRevenueSRD: Number(totalPotentialRevenueSRD.toFixed(2)),
       totalPotentialProfitSRD: Number(totalPotentialProfitSRD.toFixed(2)),
       itemCountByStatus: statusCounts,

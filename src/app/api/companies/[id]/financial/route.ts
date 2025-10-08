@@ -21,10 +21,8 @@ export async function GET(
       return NextResponse.json({ error: 'Company not found' }, { status: 404 })
     }
 
-    // Calculate stock value dynamically from batches
-    // Get all batches for items belonging to this company
-    // Only count "Arrived" items as actual stock value
-    // "ToOrder" and "Ordered" items are not yet in stock, so they shouldn't count toward stock value
+    // Calculate stock value dynamically from both batch system and legacy items
+    // Get all batches for items belonging to this company where status is "Arrived"
     const batches = await prisma.stockBatch.findMany({
       where: {
         item: {
@@ -39,12 +37,39 @@ export async function GET(
       }
     })
 
-    // Calculate total stock value in USD
-    const stockValueUSD = batches.reduce((total, batch) => {
+    // Also get legacy items (not using batch system) that have arrived
+    const legacyItems = await prisma.item.findMany({
+      where: {
+        companyId: params.id,
+        status: 'Arrived',
+        useBatchSystem: false
+      },
+      select: {
+        quantityInStock: true,
+        costPerUnitUSD: true,
+        freightCostUSD: true,
+      }
+    })
+
+    // Calculate total stock value in USD from batches
+    const batchStockValueUSD = batches.reduce((total, batch) => {
       // Cost = (costPerUnit + freight per unit) * quantity
-      const costPerUnit = batch.costPerUnitUSD + (batch.freightCostUSD / batch.quantity)
+      const freightPerUnit = batch.quantity > 0 ? (batch.freightCostUSD / batch.quantity) : 0
+      const costPerUnit = batch.costPerUnitUSD + freightPerUnit
       return total + (costPerUnit * batch.quantity)
     }, 0)
+
+    // Calculate total stock value in USD from legacy items
+    const legacyStockValueUSD = legacyItems.reduce((total, item) => {
+      // Cost = (costPerUnit + freight per unit) * quantity
+      const quantity = item.quantityInStock || 0
+      const freightCost = item.freightCostUSD || 0
+      const freightPerUnit = quantity > 0 ? (freightCost / quantity) : 0
+      const costPerUnit = item.costPerUnitUSD + freightPerUnit
+      return total + (costPerUnit * quantity)
+    }, 0)
+
+    const stockValueUSD = batchStockValueUSD + legacyStockValueUSD
 
     // Convert to SRD (1 USD = 40 SRD)
     const exchangeRate = 40
