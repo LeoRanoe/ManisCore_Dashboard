@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BarChart3, Package, Settings, Users, MapPin, Building2, Menu, X, DollarSign, LogOut, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,6 +25,49 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const { selectedCompany, setSelectedCompany, companies } = useCompany()
+  const sidebarRef = useRef<HTMLDivElement>(null)
+  const touchStartX = useRef<number>(0)
+  const touchEndX = useRef<number>(0)
+
+  // Handle swipe gestures
+  useEffect(() => {
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX.current = e.touches[0].clientX
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      touchEndX.current = e.touches[0].clientX
+    }
+
+    const handleTouchEnd = () => {
+      const swipeDistance = touchEndX.current - touchStartX.current
+      
+      // Swipe right to open (from left edge)
+      if (swipeDistance > 50 && touchStartX.current < 50 && !isMobileMenuOpen) {
+        setIsMobileMenuOpen(true)
+      }
+      
+      // Swipe left to close (when menu is open)
+      if (swipeDistance < -50 && isMobileMenuOpen) {
+        setIsMobileMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('touchstart', handleTouchStart)
+    document.addEventListener('touchmove', handleTouchMove)
+    document.addEventListener('touchend', handleTouchEnd)
+
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart)
+      document.removeEventListener('touchmove', handleTouchMove)
+      document.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [isMobileMenuOpen])
+
+  // Close menu when navigating
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [pathname])
 
   const navItems = [
     {
@@ -81,10 +124,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       )}
 
       {/* Sidebar - Hidden on mobile, slide in when menu is open */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border flex flex-col transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
-        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      <div 
+        ref={sidebarRef}
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border flex flex-col transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
         {/* Logo */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center">

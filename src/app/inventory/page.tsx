@@ -237,34 +237,37 @@ function InventoryPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Inventory Overview</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Inventory Overview</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
             View your inventory items and basic metrics. Use quick actions to access detailed management.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button asChild variant="outline" className="gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-2 flex-1 sm:flex-initial">
             <Link href="/inventory/stock">
               <Settings className="h-4 w-4" />
-              Manage Stock
+              <span className="hidden sm:inline">Manage Stock</span>
+              <span className="sm:hidden">Stock</span>
             </Link>
           </Button>
-          <Button asChild variant="outline" className="gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-2 flex-1 sm:flex-initial">
             <Link href="/inventory/locations">
               <MapPin className="h-4 w-4" />
-              Locations
+              <span className="hidden sm:inline">Locations</span>
+              <span className="sm:hidden">Locations</span>
             </Link>
           </Button>
-          <Button asChild variant="outline" className="gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-2 flex-1 sm:flex-initial">
             <Link href="/inventory/orders">
               <ShoppingCart className="h-4 w-4" />
-              Orders
+              <span className="hidden sm:inline">Orders</span>
+              <span className="sm:hidden">Orders</span>
             </Link>
           </Button>
-          <Button onClick={() => setIsFormOpen(true)} className="gap-2">
+          <Button onClick={() => setIsFormOpen(true)} size="sm" className="gap-2 flex-1 sm:flex-initial">
             <Plus className="h-4 w-4" />
             Add Item
           </Button>
@@ -402,9 +405,9 @@ function InventoryPage() {
         </div>
 
         {/* Basic Filters */}
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-3 flex-wrap items-center">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-full sm:w-48">
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
@@ -420,7 +423,8 @@ function InventoryPage() {
             <Button 
               variant="outline" 
               onClick={clearFilters} 
-              className="gap-2"
+              size="sm"
+              className="gap-2 w-full sm:w-auto"
             >
               <X className="h-4 w-4" />
               Clear Filters
