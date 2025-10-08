@@ -60,13 +60,131 @@ export async function POST(request: NextRequest) {
         // Get the item with company info
         const item = await prisma.item.findUnique({
           where: { id: itemId },
-          include: { company: true },
+          include: { 
+            company: true,
+            batches: true 
+          },
         })
 
         if (!item) {
           return NextResponse.json({ error: 'Item not found' }, { status: 404 })
         }
 
+        // Check if item uses batch system
+        if (item.useBatchSystem) {
+          // For batch-system items, we need to reduce batch quantities
+          const currentStock = item.quantityInStock || 0
+          if (currentStock < quantityToSell) {
+            return NextResponse.json({ 
+              error: 'Insufficient stock', 
+              message: `Cannot sell ${quantityToSell} items. Only ${currentStock} in stock.`,
+              available: currentStock,
+              requested: quantityToSell,
+            }, { status: 400 })
+          }
+
+          // Get batches ordered by oldest first (FIFO)
+          const availableBatches = await prisma.stockBatch.findMany({
+            where: { 
+              itemId,
+              quantity: { gt: 0 }
+            },
+            orderBy: { createdAt: 'asc' }
+          })
+
+          let remainingToSell = quantityToSell
+          const batchUpdates: Array<{ id: string; newQuantity: number }> = []
+
+          // Reduce quantities from batches (FIFO)
+          for (const batch of availableBatches) {
+            if (remainingToSell <= 0) break
+
+            const quantityFromThisBatch = Math.min(batch.quantity, remainingToSell)
+            const newBatchQuantity = batch.quantity - quantityFromThisBatch
+            
+            batchUpdates.push({
+              id: batch.id,
+              newQuantity: newBatchQuantity
+            })
+
+            remainingToSell -= quantityFromThisBatch
+          }
+
+          // Use provided selling price or default to item's selling price
+          const finalSellingPriceSRD = sellingPriceSRD || item.sellingPriceSRD
+          const totalRevenueSRD = finalSellingPriceSRD * quantityToSell
+
+          // Calculate profit (revenue - cost)
+          const costPerUnitSRD = item.costPerUnitUSD * 5.5
+          const totalCostSRD = costPerUnitSRD * quantityToSell
+          const profitSRD = totalRevenueSRD - totalCostSRD
+
+          // Update batches and create sale record in transaction
+          const result = await prisma.$transaction(async (tx) => {
+            // Update each batch
+            for (const update of batchUpdates) {
+              if (update.newQuantity === 0) {
+                // Delete batch if quantity reaches 0
+                await tx.stockBatch.delete({
+                  where: { id: update.id }
+                })
+              } else {
+                await tx.stockBatch.update({
+                  where: { id: update.id },
+                  data: { quantity: update.newQuantity }
+                })
+              }
+            }
+
+            // Add revenue to company cash balance (SRD)
+            const updatedCompany = await tx.company.update({
+              where: { id: item.companyId },
+              data: {
+                cashBalanceSRD: item.company.cashBalanceSRD + totalRevenueSRD,
+              },
+            })
+
+            // Create expense record for tracking the sale
+            const saleRecord = await tx.expense.create({
+              data: {
+                description: `Sale of ${quantityToSell}x ${item.name}`,
+                amount: totalRevenueSRD,
+                currency: 'SRD',
+                category: 'MISCELLANEOUS',
+                notes: `Sold ${quantityToSell} units at ${finalSellingPriceSRD} SRD each. Profit: ${profitSRD.toFixed(2)} SRD`,
+                companyId: item.companyId,
+              },
+            })
+
+            return { updatedCompany, saleRecord }
+          })
+
+          // Sync item quantity from batches
+          await syncItemQuantityFromBatches(itemId)
+
+          // Get updated item
+          const updatedItem = await prisma.item.findUnique({
+            where: { id: itemId }
+          })
+
+          return NextResponse.json({
+            success: true,
+            message: `Successfully sold ${quantityToSell}x ${item.name}`,
+            sale: {
+              itemId,
+              itemName: item.name,
+              quantitySold: quantityToSell,
+              pricePerUnit: finalSellingPriceSRD,
+              totalRevenue: totalRevenueSRD,
+              profit: profitSRD,
+              remainingStock: updatedItem?.quantityInStock || 0,
+            },
+            updatedItem,
+            saleRecord: result.saleRecord,
+          })
+        }
+
+        // LEGACY: For non-batch items, use old system
         const currentStock = item.quantityInStock || 0
         if (currentStock < quantityToSell) {
           return NextResponse.json({ 
@@ -159,7 +277,67 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Item not found' }, { status: 404 })
         }
 
-        // Update item quantity
+        // Check if item uses batch system
+        if (item.useBatchSystem) {
+          // For batch-system items, create a new batch
+          const newBatch = await prisma.stockBatch.create({
+            data: {
+              itemId,
+              quantity: quantityToAdd,
+              status: 'Arrived',
+              costPerUnitUSD: item.costPerUnitUSD,
+              freightCostUSD: 0,
+              notes: reason || 'Manual stock addition',
+              locationId: item.locationId,
+              assignedUserId: item.assignedUserId,
+            }
+          })
+
+          // Sync item quantity from batches
+          await syncItemQuantityFromBatches(itemId)
+
+          // Get updated item
+          const updatedItem = await prisma.item.findUnique({
+            where: { id: itemId },
+            include: {
+              company: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              assignedUser: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+              location: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          })
+
+          return NextResponse.json({
+            success: true,
+            message: `Successfully added ${quantityToAdd}x ${item.name} to stock`,
+            addition: {
+              itemId,
+              itemName: item.name,
+              quantityAdded: quantityToAdd,
+              reason: reason || 'Manual stock addition',
+              newStock: updatedItem?.quantityInStock || 0,
+            },
+            updatedItem,
+            newBatch,
+          })
+        }
+
+        // LEGACY: For non-batch items, update directly
         const currentStock = item.quantityInStock || 0
         const newStock = currentStock + quantityToAdd
         const updatedItem = await prisma.item.update({
@@ -216,10 +394,20 @@ export async function POST(request: NextRequest) {
 
         const { itemId, quantityToRemove, reason } = validation.data
 
-        // Get the item with company info
+        // Get the item with company info and batches
         const item = await prisma.item.findUnique({
           where: { id: itemId },
-          include: { company: true },
+          include: { 
+            company: true,
+            batches: {
+              where: {
+                quantity: { gt: 0 }
+              },
+              orderBy: {
+                createdAt: 'asc' // FIFO: oldest batches first
+              }
+            }
+          },
         })
 
         if (!item) {
@@ -236,6 +424,120 @@ export async function POST(request: NextRequest) {
           }, { status: 400 })
         }
 
+        // Check if item uses batch system
+        if (item.useBatchSystem) {
+          // For batch-system items, reduce quantities from oldest batches first (FIFO)
+          const availableBatches = item.batches
+
+          if (availableBatches.length === 0) {
+            return NextResponse.json({
+              error: 'No available batches',
+              message: 'Item has no available batches to remove from.',
+            }, { status: 400 })
+          }
+
+          // Calculate total available in batches
+          const totalInBatches = availableBatches.reduce((sum, b) => sum + b.quantity, 0)
+          if (totalInBatches < quantityToRemove) {
+            return NextResponse.json({
+              error: 'Insufficient batch quantity',
+              message: `Cannot remove ${quantityToRemove} items. Only ${totalInBatches} available in batches.`,
+              available: totalInBatches,
+              requested: quantityToRemove,
+            }, { status: 400 })
+          }
+
+          // Calculate cost of items being removed for profit allocation
+          const costPerUnitSRD = item.costPerUnitUSD * 5.5 // USD to SRD conversion
+          const totalCostSRD = costPerUnitSRD * quantityToRemove
+
+          // Use transaction to reduce batch quantities and allocate cost to profit
+          const result = await prisma.$transaction(async (tx) => {
+            let remainingToRemove = quantityToRemove
+            const batchUpdates: Array<{ id: string; newQuantity: number }> = []
+            const batchesToDelete: string[] = []
+
+            // Reduce quantities from oldest batches first (FIFO)
+            for (const batch of availableBatches) {
+              if (remainingToRemove <= 0) break
+
+              if (batch.quantity <= remainingToRemove) {
+                // Remove entire batch
+                remainingToRemove -= batch.quantity
+                batchesToDelete.push(batch.id)
+              } else {
+                // Partially reduce this batch
+                const newQuantity = batch.quantity - remainingToRemove
+                batchUpdates.push({ id: batch.id, newQuantity })
+                remainingToRemove = 0
+              }
+            }
+
+            // Delete empty batches
+            if (batchesToDelete.length > 0) {
+              await tx.stockBatch.deleteMany({
+                where: {
+                  id: { in: batchesToDelete }
+                }
+              })
+            }
+
+            // Update remaining batches
+            for (const update of batchUpdates) {
+              await tx.stockBatch.update({
+                where: { id: update.id },
+                data: { quantity: update.newQuantity }
+              })
+            }
+
+            // Allocate cost to profit (add to cash balance)
+            const updatedCompany = await tx.company.update({
+              where: { id: item.companyId },
+              data: {
+                cashBalanceSRD: item.company.cashBalanceSRD + totalCostSRD,
+              },
+            })
+
+            // Create expense record for tracking (negative expense = allocated profit)
+            const removalRecord = await tx.expense.create({
+              data: {
+                description: `Stock removal: ${quantityToRemove}x ${item.name}`,
+                amount: -totalCostSRD, // Negative to indicate profit allocation
+                currency: 'SRD',
+                category: 'MISCELLANEOUS',
+                notes: `Removed ${quantityToRemove} units from stock. ${reason ? `Reason: ${reason}` : 'No reason specified'}. Cost allocated to profit.`,
+                companyId: item.companyId,
+              },
+            })
+
+            return { updatedCompany, removalRecord }
+          })
+
+          // Sync item quantity from batches
+          await syncItemQuantityFromBatches(itemId)
+
+          // Get updated item
+          const updatedItem = await prisma.item.findUnique({
+            where: { id: itemId },
+          })
+
+          return NextResponse.json({
+            success: true,
+            message: `Successfully removed ${quantityToRemove}x ${item.name} from stock`,
+            removal: {
+              itemId,
+              itemName: item.name,
+              quantityRemoved: quantityToRemove,
+              costAllocatedToProfit: totalCostSRD,
+              reason: reason || 'No reason specified',
+              remainingStock: updatedItem?.quantityInStock || 0,
+            },
+            updatedItem,
+            removalRecord: result.removalRecord,
+          })
+        }
+
+        // LEGACY: For non-batch items, update directly
         // Calculate the cost value of removed items (allocate to profit)
         const costPerUnitSRD = item.costPerUnitUSD * 5.5 // Approximate USD to SRD conversion
         const totalCostSRD = costPerUnitSRD * quantityToRemove
