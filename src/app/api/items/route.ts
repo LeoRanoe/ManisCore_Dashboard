@@ -13,22 +13,44 @@ async function aggregateBatchDataForItems(items: any[]) {
     return items
   }
 
-  // Fetch all batches for items using batch system
-  const batches = await prisma.$queryRaw<any[]>`
-    SELECT 
-      "itemId",
-      COUNT(*) as "batchCount",
-      SUM(quantity) as "totalQuantity",
-      COUNT(DISTINCT "locationId") as "locationCount",
-      COUNT(DISTINCT status) as "statusCount",
-      ARRAY_AGG(DISTINCT status) as "statuses",
-      ARRAY_AGG(DISTINCT "locationId") as "locationIds"
-    FROM stock_batches
-    WHERE "itemId" = ANY(${itemsUsingBatches.map(i => i.id)}::text[])
-    GROUP BY "itemId"
-  `
+  // Fetch all batches for items using batch system with location data
+  const batches = await prisma.stockBatch.findMany({
+    where: {
+      itemId: {
+        in: itemsUsingBatches.map(i => i.id)
+      }
+    },
+    include: {
+      location: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    }
+  })
 
-  const batchDataMap = new Map(batches.map(b => [b.itemId, b]))
+  // Group batches by itemId and aggregate data
+  const batchDataMap = new Map()
+  
+  batches.forEach(batch => {
+    if (!batchDataMap.has(batch.itemId)) {
+      batchDataMap.set(batch.itemId, {
+        batchCount: 0,
+        totalQuantity: 0,
+        locations: new Set(),
+        statuses: new Set(),
+      })
+    }
+    
+    const data = batchDataMap.get(batch.itemId)
+    data.batchCount++
+    data.totalQuantity += batch.quantity || 0
+    if (batch.location) {
+      data.locations.add(JSON.stringify({ id: batch.location.id, name: batch.location.name }))
+    }
+    data.statuses.add(batch.status)
+  })
 
   // Merge batch data into items
   return items.map(item => {
@@ -43,19 +65,24 @@ async function aggregateBatchDataForItems(items: any[]) {
         quantityInStock: 0,
         batchCount: 0,
         locationCount: 0,
+        batchLocations: [],
         hasMultipleLocations: false,
         hasMultipleStatuses: false,
       }
     }
 
+    const locations = Array.from(batchData.locations).map(l => JSON.parse(l as string))
+    const locationCount = locations.length
+
     return {
       ...item,
-      quantityInStock: Number(batchData.totalQuantity) || 0,
-      batchCount: Number(batchData.batchCount) || 0,
-      locationCount: Number(batchData.locationCount) || 0,
-      hasMultipleLocations: Number(batchData.locationCount) > 1,
-      hasMultipleStatuses: Number(batchData.statusCount) > 1,
-      statuses: batchData.statuses?.filter(Boolean) || [],
+      quantityInStock: batchData.totalQuantity,
+      batchCount: batchData.batchCount,
+      locationCount: locationCount,
+      batchLocations: locations,
+      hasMultipleLocations: locationCount > 1,
+      hasMultipleStatuses: batchData.statuses.size > 1,
+      statuses: Array.from(batchData.statuses),
     }
   })
 }

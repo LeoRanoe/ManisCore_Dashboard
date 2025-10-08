@@ -61,10 +61,14 @@ export async function GET(request: NextRequest) {
 
     // Calculate total stock value in USD (only count "Arrived" items)
     const totalStockValueUSD = items.reduce((total: number, item: any) => {
+      // Only count items with "Arrived" status
+      if (item.status !== 'Arrived') {
+        return total
+      }
+
       if (item.useBatchSystem && item.batches && item.batches.length > 0) {
-        // Use batch system - only count batches with "Arrived" status
-        const arrivedBatches = item.batches.filter((b: any) => b.status === 'Arrived')
-        const batchValue = arrivedBatches.reduce((sum: number, batch: any) => {
+        // Use batch system - sum all batches for this arrived item
+        const batchValue = item.batches.reduce((sum: number, batch: any) => {
           const freightPerUnit = batch.quantity > 0 ? (batch.freightCostUSD / batch.quantity) : 0
           const costPerUnit = batch.costPerUnitUSD + freightPerUnit
           return sum + (costPerUnit * batch.quantity)
@@ -72,15 +76,11 @@ export async function GET(request: NextRequest) {
         return total + batchValue
       } else {
         // Legacy system OR items not yet migrated to batches
-        // Only count if status is "Arrived"
-        if (item.status === 'Arrived') {
-          const quantity = item.quantityInStock || 0
-          const freightCost = item.freightCostUSD || 0
-          const freightPerUnit = quantity > 0 ? (freightCost / quantity) : 0
-          const costPerUnit = item.costPerUnitUSD + freightPerUnit
-          return total + (costPerUnit * quantity)
-        }
-        return total
+        const quantity = item.quantityInStock || 0
+        const freightCost = item.freightCostUSD || 0
+        const freightPerUnit = quantity > 0 ? (freightCost / quantity) : 0
+        const costPerUnit = item.costPerUnitUSD + freightPerUnit
+        return total + (costPerUnit * quantity)
       }
     }, 0)
 

@@ -21,79 +21,50 @@ export async function GET(
       return NextResponse.json({ error: 'Company not found' }, { status: 404 })
     }
 
-    // Calculate stock value dynamically from both batch system and legacy items
-    // Get all batches for items belonging to this company where status is "Arrived"
-    const batches = await prisma.stockBatch.findMany({
-      where: {
-        item: {
-          companyId: params.id
-        },
-        status: 'Arrived' // Only count items that have arrived
-      },
-      select: {
-        quantity: true,
-        costPerUnitUSD: true,
-        freightCostUSD: true,
-      }
-    })
-
-    // Get items that DON'T use batch system OR have useBatchSystem=true but no actual batches
-    // These are legacy items that should be counted based on their direct quantityInStock
-    const legacyItems = await prisma.item.findMany({
+    // Calculate stock value dynamically from items with Arrived status
+    // Query items first (not batches) to ensure we count all arrived inventory
+    const items = await prisma.item.findMany({
       where: {
         companyId: params.id,
-        status: 'Arrived',
+        status: 'Arrived'
       },
-      select: {
-        id: true,
-        quantityInStock: true,
-        costPerUnitUSD: true,
-        freightCostUSD: true,
-        useBatchSystem: true,
+      include: {
         batches: {
           select: {
-            id: true
+            quantity: true,
+            costPerUnitUSD: true,
+            freightCostUSD: true
           }
         }
       }
     })
 
-    // Calculate total stock value in USD from batches
-    const batchStockValueUSD = batches.reduce((total, batch) => {
-      // Cost = (costPerUnit + freight per unit) * quantity
-      const freightPerUnit = batch.quantity > 0 ? (batch.freightCostUSD / batch.quantity) : 0
-      const costPerUnit = batch.costPerUnitUSD + freightPerUnit
-      return total + (costPerUnit * batch.quantity)
-    }, 0)
-
-    // Calculate total stock value in USD from legacy items
-    // Only count items that either:
-    // 1. Have useBatchSystem=false (old system)
-    // 2. Have useBatchSystem=true but NO batches (not yet migrated)
-    const legacyStockValueUSD = legacyItems.reduce((total, item) => {
-      // Skip items that have batches - they're counted above
-      if (item.batches && item.batches.length > 0) {
-        return total
+    // Calculate total stock value in USD
+    const stockValueUSD = items.reduce((total, item) => {
+      if (item.useBatchSystem && item.batches.length > 0) {
+        // For batch items: sum value from all batches
+        const batchValue = item.batches.reduce((batchTotal, batch) => {
+          const freightPerUnit = batch.quantity > 0 ? (batch.freightCostUSD / batch.quantity) : 0
+          const costPerUnit = batch.costPerUnitUSD + freightPerUnit
+          return batchTotal + (costPerUnit * batch.quantity)
+        }, 0)
+        return total + batchValue
+      } else {
+        // For legacy items or items without batches: use direct quantity and cost
+        const quantity = item.quantityInStock || 0
+        const freightCost = item.freightCostUSD || 0
+        const freightPerUnit = quantity > 0 ? (freightCost / quantity) : 0
+        const costPerUnit = item.costPerUnitUSD + freightPerUnit
+        return total + (costPerUnit * quantity)
       }
-      
-      // Cost = (costPerUnit + freight per unit) * quantity
-      const quantity = item.quantityInStock || 0
-      const freightCost = item.freightCostUSD || 0
-      const freightPerUnit = quantity > 0 ? (freightCost / quantity) : 0
-      const costPerUnit = item.costPerUnitUSD + freightPerUnit
-      return total + (costPerUnit * quantity)
     }, 0)
-
-    const stockValueUSD = batchStockValueUSD + legacyStockValueUSD
 
     // Debug logging
     console.log(`[Financial API] Company ${params.id}:`)
-    console.log(`  - Batches found: ${batches.length}`)
-    console.log(`  - Batch stock value USD: $${batchStockValueUSD.toFixed(2)}`)
-    console.log(`  - Legacy items found: ${legacyItems.length}`)
-    console.log(`  - Legacy items with batches: ${legacyItems.filter(i => i.batches.length > 0).length}`)
-    console.log(`  - Legacy items without batches: ${legacyItems.filter(i => i.batches.length === 0).length}`)
-    console.log(`  - Legacy stock value USD: $${legacyStockValueUSD.toFixed(2)}`)
+    console.log(`  - Items with Arrived status: ${items.length}`)
+    console.log(`  - Items using batches: ${items.filter(i => i.useBatchSystem && i.batches.length > 0).length}`)
+    console.log(`  - Legacy items: ${items.filter(i => !i.useBatchSystem || i.batches.length === 0).length}`)
+    console.log(`  - Total batches: ${items.reduce((sum, i) => sum + i.batches.length, 0)}`)
     console.log(`  - Total stock value USD: $${stockValueUSD.toFixed(2)}`)
 
     // Convert to SRD (1 USD = 40 SRD)

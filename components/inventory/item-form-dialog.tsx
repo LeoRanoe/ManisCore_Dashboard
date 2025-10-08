@@ -427,35 +427,53 @@ export function ItemFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="quantityInStock">
-                Quantity in Stock
-                {item && (item as any).useBatchSystem && (item as any).batchCount > 0 && (
-                  <span className="text-xs text-muted-foreground ml-2">
-                    (Managed by {(item as any).batchCount} batch{(item as any).batchCount !== 1 ? 'es' : ''})
-                  </span>
-                )}
-              </Label>
-              <Input
-                id="quantityInStock"
-                type="number"
-                {...register("quantityInStock", { valueAsNumber: true })}
-                placeholder="0"
-                disabled={item && (item as any).useBatchSystem && (item as any).batchCount > 0}
-                title={
-                  item && (item as any).useBatchSystem && (item as any).batchCount > 0
-                    ? "This item uses the batch system. Manage quantities through the Manage Stock page."
-                    : ""
-                }
-              />
-              {item && (item as any).useBatchSystem && (item as any).batchCount > 0 && (
-                <p className="text-xs text-blue-600">
-                  💡 This item uses batches. Go to "Manage Stock" to add/remove/transfer batches.
-                </p>
-              )}
-              {errors.quantityInStock && (
-                <p className="text-sm text-red-500">
-                  {errors.quantityInStock.message}
-                </p>
+              {!item ? (
+                // NEW ITEM - Show info message instead of editable field
+                <>
+                  <Label>Quantity in Stock</Label>
+                  <div className="rounded-md border border-blue-500 bg-blue-500/10 p-4">
+                    <p className="text-sm text-blue-400 flex items-center gap-2">
+                      <span className="text-lg">📦</span>
+                      <span>
+                        <strong>Batch System:</strong> After creating this item, use <strong>Manage Stock</strong> to add inventory batches with specific locations and quantities.
+                      </span>
+                    </p>
+                  </div>
+                </>
+              ) : (
+                // EXISTING ITEM - Show field (disabled if using batches)
+                <>
+                  <Label htmlFor="quantityInStock">
+                    Quantity in Stock
+                    {item && (item as any).useBatchSystem && (item as any).batchCount > 0 && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        (Managed by {(item as any).batchCount} batch{(item as any).batchCount !== 1 ? 'es' : ''})
+                      </span>
+                    )}
+                  </Label>
+                  <Input
+                    id="quantityInStock"
+                    type="number"
+                    {...register("quantityInStock", { valueAsNumber: true })}
+                    placeholder="0"
+                    disabled={item && (item as any).useBatchSystem && (item as any).batchCount > 0}
+                    title={
+                      item && (item as any).useBatchSystem && (item as any).batchCount > 0
+                        ? "This item uses the batch system. Manage quantities through the Manage Stock page."
+                        : ""
+                    }
+                  />
+                  {item && (item as any).useBatchSystem && (item as any).batchCount > 0 && (
+                    <p className="text-xs text-blue-400">
+                      💡 This item uses batches. Go to "Manage Stock" to add/remove/transfer batches.
+                    </p>
+                  )}
+                  {errors.quantityInStock && (
+                    <p className="text-sm text-red-500">
+                      {errors.quantityInStock.message}
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -486,38 +504,53 @@ export function ItemFormDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="locationId">
-                Location
-                {item && (item as any).useBatchSystem && (item as any).batchCount > 0 && (
-                  <span className="text-xs text-muted-foreground ml-2">
-                    ({(item as any).locationCount > 1 ? `${(item as any).locationCount} locations` : '1 location'})
-                  </span>
-                )}
-              </Label>
-              <Select
-                value={watch("locationId") || ""}
-                onValueChange={(value) => setValue("locationId", value)}
-                disabled={!watchedCompanyId || (item && (item as any).useBatchSystem && (item as any).batchCount > 0)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={watchedCompanyId ? "Select location" : "Select company first"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No location assigned</SelectItem>
-                  {locations.map((location) => (
-                    <SelectItem key={location.id} value={location.id}>
-                      {location.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {item && (item as any).useBatchSystem && (item as any).batchCount > 0 && (
-                <p className="text-xs text-blue-600">
-                  💡 Use the "Move" button in Items by Location to transfer batches between locations.
-                </p>
-              )}
-              {errors.locationId && (
-                <p className="text-sm text-red-500">{errors.locationId.message}</p>
+              {!item ? (
+                // NEW ITEM - Show info message
+                <>
+                  <Label>Location</Label>
+                  <div className="rounded-md border border-blue-500 bg-blue-500/10 p-4">
+                    <p className="text-sm text-blue-400">
+                      <strong>Locations are managed per batch.</strong> Set locations when adding stock via Manage Stock.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                // EXISTING ITEM
+                <>
+                  <Label htmlFor="locationId">
+                    Location
+                    {item && (item as any).useBatchSystem && (item as any).batchCount > 0 && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        ({(item as any).locationCount > 1 ? `${(item as any).locationCount} locations` : '1 location'})
+                      </span>
+                    )}
+                  </Label>
+                  <Select
+                    value={watch("locationId") || ""}
+                    onValueChange={(value) => setValue("locationId", value)}
+                    disabled={!watchedCompanyId || (item && (item as any).useBatchSystem && (item as any).batchCount > 0)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={watchedCompanyId ? "Select location" : "Select company first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No location assigned</SelectItem>
+                      {locations.map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {item && (item as any).useBatchSystem && (item as any).batchCount > 0 && (
+                    <p className="text-xs text-blue-400">
+                      💡 Use the "Move" button in Items by Location to transfer batches between locations.
+                    </p>
+                  )}
+                  {errors.locationId && (
+                    <p className="text-sm text-red-500">{errors.locationId.message}</p>
+                  )}
+                </>
               )}
             </div>
           </div>

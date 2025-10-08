@@ -41,6 +41,7 @@ interface Item {
   useBatchSystem?: boolean
   batchCount?: number
   locationCount?: number
+  batchLocations?: Array<{ id: string; name: string }>
   hasMultipleLocations?: boolean
   hasMultipleStatuses?: boolean
   statuses?: string[]
