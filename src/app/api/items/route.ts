@@ -114,15 +114,18 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    if (companyId) {
+    // Only filter by company if a specific company is selected (not "all")
+    if (companyId && companyId !== 'all') {
       where.companyId = companyId
     }
     
-    if (assignedUserId) {
+    // Only filter by user if a specific user is selected (not "all")
+    if (assignedUserId && assignedUserId !== 'all') {
       where.assignedUserId = assignedUserId
     }
     
-    if (locationId) {
+    // Only filter by location if a specific location is selected (not "all")
+    if (locationId && locationId !== 'all') {
       where.locationId = locationId
     }
 

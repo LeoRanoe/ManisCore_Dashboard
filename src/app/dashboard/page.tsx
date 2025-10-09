@@ -125,23 +125,31 @@ interface User {
   email: string
 }
 
+interface Location {
+  id: string
+  name: string
+}
+
 function DashboardPage() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null)
   const [companies, setCompanies] = useState<Company[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [locations, setLocations] = useState<Location[]>([])
   const [selectedCompany, setSelectedCompany] = useState<string>("all")
   const [selectedUser, setSelectedUser] = useState<string>("all")
+  const [selectedLocation, setSelectedLocation] = useState<string>("all")
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Fetch companies and users
+  // Fetch companies, users, and locations
   useEffect(() => {
     const fetchReferenceData = async () => {
       try {
-        const [companiesResponse, usersResponse] = await Promise.all([
+        const [companiesResponse, usersResponse, locationsResponse] = await Promise.all([
           fetch("/api/companies"),
           fetch("/api/users"),
+          fetch("/api/locations"),
         ])
 
         if (companiesResponse.ok) {
@@ -152,6 +160,11 @@ function DashboardPage() {
         if (usersResponse.ok) {
           const usersData = await usersResponse.json()
           setUsers(usersData.users || [])
+        }
+
+        if (locationsResponse.ok) {
+          const locationsData = await locationsResponse.json()
+          setLocations(locationsData.locations || [])
         }
       } catch (error) {
         console.error("Error fetching reference data:", error)
@@ -174,6 +187,10 @@ function DashboardPage() {
         
         if (selectedUser !== "all") {
           params.append("userId", selectedUser)
+        }
+        
+        if (selectedLocation !== "all") {
+          params.append("locationId", selectedLocation)
         }
 
         const metricsResponse = await fetch(`/api/dashboard-metrics?${params}`)
@@ -258,7 +275,7 @@ function DashboardPage() {
     }
 
     fetchDashboardData()
-  }, [selectedCompany, selectedUser])
+  }, [selectedCompany, selectedUser, selectedLocation])
 
   const formatCurrency = (amount: number, currency: string) => {
     // Handle null/undefined amounts
@@ -381,6 +398,21 @@ function DashboardPage() {
               {users.map((user) => (
                 <SelectItem key={user.id} value={user.id}>
                   {user.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+            <SelectTrigger className="w-[180px]">
+              <MapPin className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="All Locations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              {locations.map((location) => (
+                <SelectItem key={location.id} value={location.id}>
+                  {location.name}
                 </SelectItem>
               ))}
             </SelectContent>

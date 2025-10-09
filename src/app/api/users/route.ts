@@ -13,11 +13,12 @@ export async function GET(request: NextRequest) {
 
     const where: any = {}
     
-    if (companyId) {
+    // Only filter by company if a specific company is selected (not "all")
+    if (companyId && companyId !== 'all') {
       where.companyId = companyId
     }
     
-    if (isActive !== null) {
+    if (isActive !== null && isActive !== 'null') {
       where.isActive = isActive === 'true'
     }
 
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
           select: {
             items: true,
             locations: true,
+            stockBatches: true,
           },
         },
       },

@@ -20,8 +20,12 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: any = {}
     
+    // Exclude INCOME category from expense listings by default
+    // unless a specific category is requested
     if (category) {
       where.category = category
+    } else {
+      where.category = { not: 'INCOME' }
     }
     
     if (currency) {
@@ -45,11 +49,13 @@ export async function GET(request: NextRequest) {
       ]
     }
     
-    if (companyId) {
+    // Only filter by company if a specific company is selected (not "all")
+    if (companyId && companyId !== 'all') {
       where.companyId = companyId
     }
     
-    if (createdById) {
+    // Only filter by creator if a specific user is selected (not "all")
+    if (createdById && createdById !== 'all') {
       where.createdById = createdById
     }
     

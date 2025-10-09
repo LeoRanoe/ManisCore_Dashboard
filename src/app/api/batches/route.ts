@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
     if (locationId) where.locationId = locationId
     if (status) where.status = status
     
-    // Filter by company through item relation
-    if (companyId) {
+    // Filter by company through item relation - only if not "all"
+    if (companyId && companyId !== 'all') {
       where.item = { companyId }
     }
 

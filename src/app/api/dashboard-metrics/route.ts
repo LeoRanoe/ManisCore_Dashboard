@@ -10,16 +10,24 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const companyId = searchParams.get('companyId')
     const userId = searchParams.get('userId')
+    const locationId = searchParams.get('locationId')
 
     // Build where clause for filtering
     const where: any = {}
     
+    // Company filter applies at item level (items belong to companies)
     if (companyId && companyId !== 'all') {
       where.companyId = companyId
     }
     
+    // Build batch-level filters
+    // NOTE: For batch system, users/locations are assigned at batch level
+    const batchWhere: any = {}
     if (userId && userId !== 'all') {
-      where.assignedUserId = userId
+      batchWhere.assignedUserId = userId
+    }
+    if (locationId && locationId !== 'all') {
+      batchWhere.locationId = locationId
     }
 
     // Get all items with their related data
@@ -48,19 +56,55 @@ export async function GET(request: NextRequest) {
           },
         },
         batches: {
+          // Apply batch-level filters here
+          where: Object.keys(batchWhere).length > 0 ? batchWhere : undefined,
           select: {
             id: true,
             quantity: true,
             status: true,
             costPerUnitUSD: true,
             freightCostUSD: true,
+            assignedUserId: true,
+            locationId: true,
+            assignedUser: {
+              select: {
+                id: true,
+                name: true,
+              }
+            },
+            location: {
+              select: {
+                id: true,
+                name: true,
+              }
+            }
           }
         }
       },
     })
+    
+    // Filter items based on system type
+    // Batch system: keep items that have matching batches (already filtered)
+    // Legacy system: apply user/location filters at item level
+    const filteredItems = items.filter(item => {
+      if (item.useBatchSystem && item.batches) {
+        // For batch system, item is valid if it has at least one batch
+        // (batches are already filtered by batchWhere)
+        return item.batches.length > 0
+      } else {
+        // For legacy system, apply filters at item level
+        if (userId && userId !== 'all' && item.assignedUserId !== userId) {
+          return false
+        }
+        if (locationId && locationId !== 'all' && item.locationId !== locationId) {
+          return false
+        }
+        return true
+      }
+    })
 
     // Calculate total stock value in USD - only count "Arrived" items/batches
-    const totalStockValueUSD = items.reduce((total: number, item: any) => {
+    const totalStockValueUSD = filteredItems.reduce((total: number, item: any) => {
       let itemValue = 0
 
       if (item.useBatchSystem && item.batches && item.batches.length > 0) {
@@ -96,18 +140,18 @@ export async function GET(request: NextRequest) {
 
     // Debug logging
     console.log('[Dashboard Metrics] Calculation Summary:')
-    console.log(`  - Total items queried: ${items.length}`)
-    console.log(`  - Batch system items: ${items.filter(i => i.useBatchSystem && i.batches?.length > 0).length}`)
-    console.log(`  - Legacy items: ${items.filter(i => !i.useBatchSystem || !i.batches?.length).length}`)
+    console.log(`  - Total items queried: ${filteredItems.length}`)
+    console.log(`  - Batch system items: ${filteredItems.filter(i => i.useBatchSystem && i.batches?.length > 0).length}`)
+    console.log(`  - Legacy items: ${filteredItems.filter(i => !i.useBatchSystem || !i.batches?.length).length}`)
     
-    const arrivedBatchCount = items.reduce((sum, i) => 
+    const arrivedBatchCount = filteredItems.reduce((sum, i) => 
       sum + (i.batches?.filter((b: any) => b.status === 'Arrived').length || 0), 0
     )
-    const totalBatchCount = items.reduce((sum, i) => sum + (i.batches?.length || 0), 0)
+    const totalBatchCount = filteredItems.reduce((sum, i) => sum + (i.batches?.length || 0), 0)
     console.log(`  - Total batches: ${totalBatchCount}`)
     console.log(`  - Arrived batches: ${arrivedBatchCount}`)
     
-    const arrivedLegacyCount = items.filter(i => 
+    const arrivedLegacyCount = filteredItems.filter(i => 
       (!i.useBatchSystem || !i.batches?.length) && i.status === 'Arrived'
     ).length
     console.log(`  - Legacy items with Arrived status: ${arrivedLegacyCount}`)
@@ -134,7 +178,7 @@ export async function GET(request: NextRequest) {
     const totalStockValueSRD = totalStockValueUSD * usdToSrdRate
 
     // Calculate total potential revenue in SRD - only count arrived items/batches
-    const totalPotentialRevenueSRD = items.reduce((total: number, item: any) => {
+    const totalPotentialRevenueSRD = filteredItems.reduce((total: number, item: any) => {
       let currentQuantity = 0
       
       // Calculate actual quantity based on system used - only "Arrived" status
@@ -156,7 +200,7 @@ export async function GET(request: NextRequest) {
     const totalPotentialProfitSRD = totalPotentialRevenueSRD - totalCostInSRD
 
     // Count items by status
-    const itemCountByStatus = items.reduce((counts, item) => {
+    const itemCountByStatus = filteredItems.reduce((counts, item) => {
       const status = item.status || 'ToOrder'
       counts[status] = (counts[status] || 0) + 1
       return counts
@@ -173,7 +217,7 @@ export async function GET(request: NextRequest) {
     // Company metrics (if not filtering by specific company)
     const companyMetrics: Record<string, any> = {}
     if (!companyId || companyId === 'all') {
-      const companyGroups = items.reduce((groups, item) => {
+      const companyGroups = filteredItems.reduce((groups, item) => {
         const companyId = item.company.id
         if (!groups[companyId]) {
           groups[companyId] = {
@@ -223,40 +267,61 @@ export async function GET(request: NextRequest) {
         companyMetrics[id] = {
           name: data.name,
           itemCount: data.items.length,
-          stockValueUSD: Number(stockValue.toFixed(2)),
-          potentialRevenueSRD: Number(potentialRevenue.toFixed(2)),
+          stockValue: Number(stockValue.toFixed(2)),
+          potentialRevenue: Number(potentialRevenue.toFixed(2)),
         }
       })
     }
 
     // User metrics (if not filtering by specific user)
+    // NOTE: For batch system, users are assigned at batch level
     const userMetrics: Record<string, any> = {}
     if (!userId || userId === 'all') {
-      const userGroups = items.reduce((groups, item) => {
-        if (item.assignedUser) {
+      const userGroups: Record<string, { name: string; items: Map<string, any> }> = {}
+      
+      filteredItems.forEach((item) => {
+        if (item.useBatchSystem && item.batches && item.batches.length > 0) {
+          // For batch system, group by batch's assigned user
+          item.batches.forEach((batch: any) => {
+            if (batch.assignedUser) {
+              const userId = batch.assignedUser.id
+              if (!userGroups[userId]) {
+                userGroups[userId] = {
+                  name: batch.assignedUser.name,
+                  items: new Map(),
+                }
+              }
+              // Store item with this specific batch
+              if (!userGroups[userId].items.has(item.id)) {
+                userGroups[userId].items.set(item.id, { ...item, batches: [] })
+              }
+              userGroups[userId].items.get(item.id).batches.push(batch)
+            }
+          })
+        } else if (item.assignedUser) {
+          // For legacy system, use item's assigned user
           const userId = item.assignedUser.id
-          if (!groups[userId]) {
-            groups[userId] = {
+          if (!userGroups[userId]) {
+            userGroups[userId] = {
               name: item.assignedUser.name,
-              items: [],
+              items: new Map(),
             }
           }
-          groups[userId].items.push(item)
+          userGroups[userId].items.set(item.id, item)
         }
-        return groups
-      }, {} as Record<string, { name: string; items: any[] }>)
+      })
 
       Object.entries(userGroups).forEach(([id, data]) => {
         let stockValue = 0
+        const itemsArray = Array.from(data.items.values())
         
-        data.items.forEach((item) => {
+        itemsArray.forEach((item) => {
           if (item.useBatchSystem && item.batches && item.batches.length > 0) {
             // Calculate from arrived batches only
             item.batches.forEach((batch: any) => {
               if (batch.status === 'Arrived') {
                 const batchQty = batch.quantity || 0
                 if (batchQty > 0) {
-                  // Use batch cost, but fall back to item cost if batch cost is 0
                   const batchCost = batch.costPerUnitUSD || item.costPerUnitUSD || 0
                   const freightPerUnit = batch.freightCostUSD / Math.max(batchQty, 1)
                   const costPerUnit = batchCost + freightPerUnit
@@ -280,14 +345,14 @@ export async function GET(request: NextRequest) {
 
         userMetrics[id] = {
           name: data.name,
-          itemCount: data.items.length,
-          stockValueUSD: Number(stockValue.toFixed(2)),
+          itemCount: data.items.size,
+          stockValue: Number(stockValue.toFixed(2)),
         }
       })
     }
 
     // Get low stock items (quantity < 5)
-    const lowStockItems = items.filter(item => (item.quantityInStock || 0) < 5).slice(0, 10)
+    const lowStockItems = filteredItems.filter(item => (item.quantityInStock || 0) < 5).slice(0, 10)
 
     return NextResponse.json({
       totalCashSRD: Number(totalCashSRD.toFixed(2)),
@@ -308,7 +373,7 @@ export async function GET(request: NextRequest) {
         assignedUser: item.assignedUser,
         location: item.location,
       })),
-      totalItems: items.length,
+      totalItems: filteredItems.length,
     })
   } catch (error) {
     console.error('Error fetching dashboard metrics:', error)
