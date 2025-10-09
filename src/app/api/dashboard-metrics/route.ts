@@ -59,29 +59,36 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Calculate total stock value in USD (only count "Arrived" items)
+    // Calculate total stock value in USD - count ALL items with inventory
     const totalStockValueUSD = items.reduce((total: number, item: any) => {
-      // Only count items with "Arrived" status
-      if (item.status !== 'Arrived') {
-        return total
-      }
+      // Calculate current inventory quantity
+      let currentQuantity = 0
+      let itemValue = 0
 
       if (item.useBatchSystem && item.batches && item.batches.length > 0) {
-        // Use batch system - sum all batches for this arrived item
-        const batchValue = item.batches.reduce((sum: number, batch: any) => {
-          const freightPerUnit = batch.quantity > 0 ? (batch.freightCostUSD / batch.quantity) : 0
-          const costPerUnit = batch.costPerUnitUSD + freightPerUnit
-          return sum + (costPerUnit * batch.quantity)
-        }, 0)
-        return total + batchValue
+        // Use batch system - sum all batches regardless of item status
+        // Batches have their own status tracking
+        item.batches.forEach((batch: any) => {
+          const batchQty = batch.quantity || 0
+          if (batchQty > 0) {
+            const freightPerUnit = batch.freightCostUSD / Math.max(batchQty, 1)
+            const costPerUnit = (batch.costPerUnitUSD || 0) + freightPerUnit
+            itemValue += costPerUnit * batchQty
+            currentQuantity += batchQty
+          }
+        })
       } else {
         // Legacy system OR items not yet migrated to batches
-        const quantity = item.quantityInStock || 0
-        const freightCost = item.freightCostUSD || 0
-        const freightPerUnit = quantity > 0 ? (freightCost / quantity) : 0
-        const costPerUnit = item.costPerUnitUSD + freightPerUnit
-        return total + (costPerUnit * quantity)
+        currentQuantity = item.quantityInStock || 0
+        if (currentQuantity > 0) {
+          const freightCost = item.freightCostUSD || 0
+          const freightPerUnit = freightCost / Math.max(currentQuantity, 1)
+          const costPerUnit = (item.costPerUnitUSD || 0) + freightPerUnit
+          itemValue = costPerUnit * currentQuantity
+        }
       }
+
+      return total + itemValue
     }, 0)
 
     // Get total cash for selected company
@@ -104,9 +111,18 @@ export async function GET(request: NextRequest) {
     const usdToSrdRate = 40
     const totalStockValueSRD = totalStockValueUSD * usdToSrdRate
 
-    // Calculate total potential revenue in SRD
+    // Calculate total potential revenue in SRD - sum selling price × current quantity
     const totalPotentialRevenueSRD = items.reduce((total: number, item: any) => {
-      return total + item.sellingPriceSRD * item.quantityInStock
+      let currentQuantity = 0
+      
+      // Calculate actual quantity based on system used
+      if (item.useBatchSystem && item.batches && item.batches.length > 0) {
+        currentQuantity = item.batches.reduce((sum: number, batch: any) => sum + (batch.quantity || 0), 0)
+      } else {
+        currentQuantity = item.quantityInStock || 0
+      }
+      
+      return total + (item.sellingPriceSRD || 0) * currentQuantity
     }, 0)
 
     // Calculate total potential profit in SRD
@@ -144,13 +160,36 @@ export async function GET(request: NextRequest) {
       }, {} as Record<string, { name: string; items: any[] }>)
 
       Object.entries(companyGroups).forEach(([id, data]) => {
-        const stockValue = data.items.reduce((total, item) => {
-          return total + (item.costPerUnitUSD + (item.freightCostUSD / Math.max(item.quantityInStock, 1))) * item.quantityInStock
-        }, 0)
+        let stockValue = 0
+        let potentialRevenue = 0
         
-        const potentialRevenue = data.items.reduce((total, item) => {
-          return total + item.sellingPriceSRD * item.quantityInStock
-        }, 0)
+        data.items.forEach((item) => {
+          let currentQuantity = 0
+          
+          if (item.useBatchSystem && item.batches && item.batches.length > 0) {
+            // Calculate from batches
+            item.batches.forEach((batch: any) => {
+              const batchQty = batch.quantity || 0
+              if (batchQty > 0) {
+                const freightPerUnit = batch.freightCostUSD / Math.max(batchQty, 1)
+                const costPerUnit = (batch.costPerUnitUSD || 0) + freightPerUnit
+                stockValue += costPerUnit * batchQty
+                currentQuantity += batchQty
+              }
+            })
+          } else {
+            // Calculate from legacy system
+            currentQuantity = item.quantityInStock || 0
+            if (currentQuantity > 0) {
+              const freightCost = item.freightCostUSD || 0
+              const freightPerUnit = freightCost / Math.max(currentQuantity, 1)
+              const costPerUnit = (item.costPerUnitUSD || 0) + freightPerUnit
+              stockValue += costPerUnit * currentQuantity
+            }
+          }
+          
+          potentialRevenue += (item.sellingPriceSRD || 0) * currentQuantity
+        })
 
         companyMetrics[id] = {
           name: data.name,
@@ -179,9 +218,33 @@ export async function GET(request: NextRequest) {
       }, {} as Record<string, { name: string; items: any[] }>)
 
       Object.entries(userGroups).forEach(([id, data]) => {
-        const stockValue = data.items.reduce((total, item) => {
-          return total + (item.costPerUnitUSD + (item.freightCostUSD / Math.max(item.quantityInStock, 1))) * item.quantityInStock
-        }, 0)
+        let stockValue = 0
+        
+        data.items.forEach((item) => {
+          let currentQuantity = 0
+          
+          if (item.useBatchSystem && item.batches && item.batches.length > 0) {
+            // Calculate from batches
+            item.batches.forEach((batch: any) => {
+              const batchQty = batch.quantity || 0
+              if (batchQty > 0) {
+                const freightPerUnit = batch.freightCostUSD / Math.max(batchQty, 1)
+                const costPerUnit = (batch.costPerUnitUSD || 0) + freightPerUnit
+                stockValue += costPerUnit * batchQty
+                currentQuantity += batchQty
+              }
+            })
+          } else {
+            // Calculate from legacy system
+            currentQuantity = item.quantityInStock || 0
+            if (currentQuantity > 0) {
+              const freightCost = item.freightCostUSD || 0
+              const freightPerUnit = freightCost / Math.max(currentQuantity, 1)
+              const costPerUnit = (item.costPerUnitUSD || 0) + freightPerUnit
+              stockValue += costPerUnit * currentQuantity
+            }
+          }
+        })
 
         userMetrics[id] = {
           name: data.name,
