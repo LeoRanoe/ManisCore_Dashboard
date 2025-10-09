@@ -40,6 +40,7 @@ import {
 interface DashboardMetrics {
   totalStockValueUSD: number
   totalPotentialRevenueSRD: number
+  totalIfAllSoldSRD: number
   totalPotentialProfitSRD: number
   itemCountByStatus: {
     ToOrder: number
@@ -507,7 +508,7 @@ function DashboardPage() {
                 <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
                   {formatCurrency(
                     financialSummary.totalCashSRD + (financialSummary.totalCashUSD * 40) + 
-                    (metrics?.totalPotentialRevenueSRD || 0) - 
+                    (metrics?.totalIfAllSoldSRD || 0) - 
                     (financialSummary.totalExpensesSRD + (financialSummary.totalExpensesUSD * 40)), 
                     "SRD"
                   )}

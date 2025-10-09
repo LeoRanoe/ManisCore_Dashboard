@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Edit, Trash2, MoreHorizontal, ArrowUpDown, ShoppingCart, Package2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import {
@@ -15,6 +15,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,6 +70,19 @@ interface Item {
   createdAt: string
 }
 
+interface Location {
+  id: string
+  name: string
+  companyId: string
+}
+
+interface User {
+  id: string
+  name: string
+  email: string
+  companyId: string
+}
+
 interface ItemDataTableProps {
   items: Item[]
   sortBy?: string
@@ -95,9 +115,39 @@ export function ItemDataTable({
   const [isRemoving, setIsRemoving] = useState(false)
   const [sellQuantity, setSellQuantity] = useState(1)
   const [sellPrice, setSellPrice] = useState(0)
+  const [sellLocationId, setSellLocationId] = useState<string>("")
+  const [sellUserId, setSellUserId] = useState<string>("")
   const [removeQuantity, setRemoveQuantity] = useState(1)
   const [removeReason, setRemoveReason] = useState("")
+  const [locations, setLocations] = useState<Location[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const { toast } = useToast()
+
+  // Fetch locations and users
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [locationsRes, usersRes] = await Promise.all([
+          fetch('/api/locations'),
+          fetch('/api/users')
+        ])
+        
+        if (locationsRes.ok) {
+          const locationsData = await locationsRes.json()
+          setLocations(locationsData.locations || [])
+        }
+        
+        if (usersRes.ok) {
+          const usersData = await usersRes.json()
+          setUsers(usersData.users || [])
+        }
+      } catch (error) {
+        console.error('Error fetching locations/users:', error)
+      }
+    }
+    
+    fetchData()
+  }, [])
 
   const handleDelete = async (item: Item) => {
     setIsDeleting(true)
@@ -141,6 +191,8 @@ export function ItemDataTable({
           itemId: item.id,
           quantityToSell: sellQuantity,
           sellingPriceSRD: sellPrice || item.sellingPriceSRD,
+          locationId: sellLocationId || undefined,
+          assignedUserId: sellUserId || undefined,
         }),
       })
 
@@ -159,6 +211,8 @@ export function ItemDataTable({
       setSellDialogItem(null)
       setSellQuantity(1)
       setSellPrice(0)
+      setSellLocationId("")
+      setSellUserId("")
       onRefresh()
     } catch (error) {
       toast({
@@ -218,6 +272,8 @@ export function ItemDataTable({
     setSellDialogItem(item)
     setSellQuantity(Math.min(1, item.quantityInStock))
     setSellPrice(item.sellingPriceSRD)
+    setSellLocationId(item.locationId || "")
+    setSellUserId(item.assignedUserId || "")
   }
 
   const openRemoveDialog = (item: Item) => {
@@ -438,7 +494,11 @@ export function ItemDataTable({
       {/* Sell Dialog */}
       <AlertDialog
         open={!!sellDialogItem}
-        onOpenChange={() => setSellDialogItem(null)}
+        onOpenChange={() => {
+          setSellDialogItem(null)
+          setSellLocationId("")
+          setSellUserId("")
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -475,6 +535,52 @@ export function ItemDataTable({
                 onChange={(e) => setSellPrice(parseFloat(e.target.value) || 0)}
                 className="col-span-3"
               />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="sellLocation" className="text-right">
+                Location
+              </Label>
+              <Select
+                value={sellLocationId}
+                onValueChange={setSellLocationId}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select location (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {locations
+                    .filter(loc => loc.companyId === sellDialogItem?.companyId)
+                    .map(location => (
+                      <SelectItem key={location.id} value={location.id}>
+                        {location.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="sellUser" className="text-right">
+                Sold By
+              </Label>
+              <Select
+                value={sellUserId}
+                onValueChange={setSellUserId}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select user (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {users
+                    .filter(user => user.companyId === sellDialogItem?.companyId)
+                    .map(user => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="text-sm text-muted-foreground">
               Available stock: {sellDialogItem?.quantityInStock}

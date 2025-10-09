@@ -251,6 +251,25 @@ export async function GET(request: NextRequest) {
       return total + (item.sellingPriceSRD || 0) * currentQuantity
     }, 0)
 
+    // Calculate "If All Sold" - total potential revenue based on ALL original inventory
+    // This represents what the company would earn if they sold ALL inventory they ever purchased
+    // This value should remain constant regardless of current sales
+    const totalIfAllSoldSRD = filteredItems.reduce((total: number, item: any) => {
+      let originalTotalQuantity = 0
+      
+      // Calculate original total quantity based on system used
+      if (item.useBatchSystem && item.batches && item.batches.length > 0) {
+        // Sum ALL batches' original quantities (regardless of status or current quantity)
+        originalTotalQuantity = item.batches
+          .reduce((sum: number, batch: any) => sum + (batch.originalQuantity || batch.quantity || 0), 0)
+      } else {
+        // Legacy system - use quantityInStock as proxy for original (legacy items don't have batch tracking)
+        originalTotalQuantity = item.quantityInStock || 0
+      }
+      
+      return total + (item.sellingPriceSRD || 0) * originalTotalQuantity
+    }, 0)
+
     // Calculate total potential profit in SRD
     const totalCostInSRD = totalStockValueUSD * usdToSrdRate
     const totalPotentialProfitSRD = totalPotentialRevenueSRD - totalCostInSRD
@@ -417,6 +436,7 @@ export async function GET(request: NextRequest) {
       totalStockValueUSD: Number(totalStockValueUSD.toFixed(2)),
       totalStockValueSRD: Number(totalStockValueSRD.toFixed(2)),
       totalPotentialRevenueSRD: Number(totalPotentialRevenueSRD.toFixed(2)),
+      totalIfAllSoldSRD: Number(totalIfAllSoldSRD.toFixed(2)), // New metric for "If All Sold"
       totalPotentialProfitSRD: Number(totalPotentialProfitSRD.toFixed(2)),
       itemCountByStatus: statusCounts,
       companyMetrics,

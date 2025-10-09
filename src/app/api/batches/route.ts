@@ -110,6 +110,7 @@ export async function POST(request: NextRequest) {
       data: {
         itemId,
         quantity,
+        originalQuantity: quantity, // Set original quantity on creation
         status: status || 'ToOrder',
         costPerUnitUSD,
         freightCostUSD: freightCostUSD || 0,

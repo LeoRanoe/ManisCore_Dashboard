@@ -16,6 +16,8 @@ const SellItemSchema = z.object({
   itemId: z.string().min(1, 'Item ID is required'),
   quantityToSell: z.number().int().min(1, 'Quantity to sell must be at least 1'),
   sellingPriceSRD: z.number().min(0, 'Selling price must be non-negative').optional(),
+  locationId: z.string().optional(), // Optional: track which location the sale is from
+  assignedUserId: z.string().optional(), // Optional: track who made the sale
 })
 
 // Schema for remove from stock action
@@ -55,7 +57,7 @@ export async function POST(request: NextRequest) {
           }, { status: 400 })
         }
 
-        const { itemId, quantityToSell, sellingPriceSRD } = validation.data
+        const { itemId, quantityToSell, sellingPriceSRD, locationId, assignedUserId } = validation.data
 
         // Get the item with company info
         const item = await prisma.item.findUnique({
@@ -84,12 +86,19 @@ export async function POST(request: NextRequest) {
           }
 
           // Get batches ordered by oldest first (FIFO)
+          // If locationId is provided, prioritize batches from that location
+          const batchWhere: any = {
+            itemId,
+            quantity: { gt: 0 }
+          }
+          
           const availableBatches = await prisma.stockBatch.findMany({
-            where: { 
-              itemId,
-              quantity: { gt: 0 }
-            },
-            orderBy: { createdAt: 'asc' }
+            where: batchWhere,
+            orderBy: [
+              // Prioritize batches from selected location if specified
+              ...(locationId ? [{ locationId: locationId === 'none' ? null : locationId } as any] : []),
+              { createdAt: 'asc' } // Then FIFO
+            ]
           })
 
           let remainingToSell = quantityToSell
@@ -284,6 +293,7 @@ export async function POST(request: NextRequest) {
             data: {
               itemId,
               quantity: quantityToAdd,
+              originalQuantity: quantityToAdd, // Set original quantity on creation
               status: 'Arrived',
               costPerUnitUSD: item.costPerUnitUSD,
               freightCostUSD: 0,
