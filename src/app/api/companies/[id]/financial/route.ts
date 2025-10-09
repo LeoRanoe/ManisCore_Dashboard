@@ -21,7 +21,7 @@ export async function GET(
       return NextResponse.json({ error: 'Company not found' }, { status: 404 })
     }
 
-    // Calculate stock value dynamically from items with inventory
+    // Calculate stock value dynamically from items/batches with "Arrived" status
     // Query items to calculate total stock value
     const items = await prisma.item.findMany({
       where: {
@@ -39,28 +39,32 @@ export async function GET(
       }
     })
 
-    // Calculate total stock value in USD
+    // Calculate total stock value in USD - only count "Arrived" items/batches
     const stockValueUSD = items.reduce((total, item) => {
       let itemValue = 0
       
       if (item.useBatchSystem && item.batches.length > 0) {
-        // For batch items: sum value from all batches with quantity > 0
+        // For batch items: only count batches with "Arrived" status
         item.batches.forEach((batch) => {
-          const batchQty = batch.quantity || 0
-          if (batchQty > 0) {
-            const freightPerUnit = batch.freightCostUSD / Math.max(batchQty, 1)
-            const costPerUnit = (batch.costPerUnitUSD || 0) + freightPerUnit
-            itemValue += costPerUnit * batchQty
+          if (batch.status === 'Arrived') {
+            const batchQty = batch.quantity || 0
+            if (batchQty > 0) {
+              const freightPerUnit = batch.freightCostUSD / Math.max(batchQty, 1)
+              const costPerUnit = (batch.costPerUnitUSD || 0) + freightPerUnit
+              itemValue += costPerUnit * batchQty
+            }
           }
         })
       } else {
-        // For legacy items or items without batches: use direct quantity and cost
-        const quantity = item.quantityInStock || 0
-        if (quantity > 0) {
-          const freightCost = item.freightCostUSD || 0
-          const freightPerUnit = freightCost / Math.max(quantity, 1)
-          const costPerUnit = (item.costPerUnitUSD || 0) + freightPerUnit
-          itemValue = costPerUnit * quantity
+        // For legacy items: only count if item status is "Arrived"
+        if (item.status === 'Arrived') {
+          const quantity = item.quantityInStock || 0
+          if (quantity > 0) {
+            const freightCost = item.freightCostUSD || 0
+            const freightPerUnit = freightCost / Math.max(quantity, 1)
+            const costPerUnit = (item.costPerUnitUSD || 0) + freightPerUnit
+            itemValue = costPerUnit * quantity
+          }
         }
       }
       
@@ -71,8 +75,13 @@ export async function GET(
     const batchItemsCount = items.filter(i => i.useBatchSystem && i.batches.length > 0).length
     const legacyItemsCount = items.filter(i => !i.useBatchSystem || i.batches.length === 0).length
     const totalBatches = items.reduce((sum, i) => sum + i.batches.length, 0)
+    const arrivedBatches = items.reduce((sum, i) => 
+      sum + i.batches.filter(b => b.status === 'Arrived').length, 0
+    )
     const totalBatchQty = items.reduce((sum, i) => 
-      sum + i.batches.reduce((bSum, b) => bSum + (b.quantity || 0), 0), 0
+      sum + i.batches
+        .filter(b => b.status === 'Arrived')
+        .reduce((bSum, b) => bSum + (b.quantity || 0), 0), 0
     )
     
     console.log(`[Financial API] Company ${params.id}:`)
@@ -80,7 +89,8 @@ export async function GET(
     console.log(`  - Items using batches: ${batchItemsCount}`)
     console.log(`  - Legacy items: ${legacyItemsCount}`)
     console.log(`  - Total batches: ${totalBatches}`)
-    console.log(`  - Total batch quantity: ${totalBatchQty}`)
+    console.log(`  - Arrived batches: ${arrivedBatches}`)
+    console.log(`  - Total arrived batch quantity: ${totalBatchQty}`)
     console.log(`  - Total stock value USD: $${stockValueUSD.toFixed(2)}`)
 
     // Convert to SRD (1 USD = 40 SRD)
