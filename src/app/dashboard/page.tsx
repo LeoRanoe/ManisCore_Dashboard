@@ -391,62 +391,62 @@ function DashboardPage() {
       {/* Financial Summary */}
       {financialSummary && (
         <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
             <Card className="border-l-4 border-l-blue-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Cash Balance (SRD)</CardTitle>
+                <CardTitle className="text-sm font-medium">Cash (SRD)</CardTitle>
                 <Coins className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {formatCurrency(financialSummary.totalCashSRD, "SRD")}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Available liquid cash in SRD</p>
+                <p className="text-xs text-muted-foreground mt-1">Liquid cash in SRD</p>
               </CardContent>
             </Card>
 
             <Card className="border-l-4 border-l-green-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Cash Balance (USD)</CardTitle>
+                <CardTitle className="text-sm font-medium">Cash (USD)</CardTitle>
                 <DollarSign className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {formatCurrency(financialSummary.totalCashUSD, "USD")}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Available liquid cash in USD</p>
+                <p className="text-xs text-muted-foreground mt-1">Liquid cash in USD</p>
               </CardContent>
             </Card>
 
             <Card className="border-l-4 border-l-purple-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Inventory Value (SRD)</CardTitle>
+                <CardTitle className="text-sm font-medium">Stock Value (Cost)</CardTitle>
                 <Package className="h-4 w-4 text-purple-500" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {formatCurrency(financialSummary.totalStockValueSRD, "SRD")}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Total value of all stock (cost basis)</p>
+                <p className="text-xs text-muted-foreground mt-1">Investment in inventory</p>
               </CardContent>
             </Card>
 
             <Card className="border-l-4 border-l-red-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+                <CardTitle className="text-sm font-medium">Expenses</CardTitle>
                 <Receipt className="h-4 w-4 text-red-500" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">
                   {formatCurrency(financialSummary.totalExpensesSRD + (financialSummary.totalExpensesUSD * 40), "SRD")}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">All recorded expenses</p>
+                <p className="text-xs text-muted-foreground mt-1">Recorded expenses</p>
               </CardContent>
             </Card>
 
             <Card className="border-l-4 border-l-emerald-500 bg-gradient-to-br from-emerald-50/50 to-transparent dark:from-emerald-950/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Net Worth</CardTitle>
+                <CardTitle className="text-sm font-medium">Current Worth</CardTitle>
                 <TrendingUp className="h-4 w-4 text-emerald-500" />
               </CardHeader>
               <CardContent>
@@ -462,7 +462,25 @@ function DashboardPage() {
                     "SRD"
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Cash + Inventory - Expenses</p>
+                <p className="text-xs text-muted-foreground mt-1">Cost basis accounting</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-amber-500 bg-gradient-to-br from-amber-50/50 to-transparent dark:from-amber-950/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">If All Sold</CardTitle>
+                <TrendingUp className="h-4 w-4 text-amber-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                  {formatCurrency(
+                    financialSummary.totalCashSRD + (financialSummary.totalCashUSD * 40) + 
+                    (metrics?.totalPotentialRevenueSRD || 0) - 
+                    (financialSummary.totalExpensesSRD + (financialSummary.totalExpensesUSD * 40)), 
+                    "SRD"
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">At selling prices</p>
               </CardContent>
             </Card>
           </div>

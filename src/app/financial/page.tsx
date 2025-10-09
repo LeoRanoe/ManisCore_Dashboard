@@ -36,6 +36,9 @@ interface FinancialData {
   stockValueUSD: number
   totalValueSRD: number
   totalValueUSD: number
+  potentialRevenueSRD?: number
+  potentialProfitSRD?: number
+  totalValueIfSoldSRD?: number
 }
 
 interface Expense {
@@ -148,58 +151,105 @@ function FinancialPage() {
           {/* Financial Summary Cards */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {/* Cash Balance SRD */}
-            <Card>
+            <Card className="border-l-4 border-l-blue-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Cash Balance (SRD)</CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Cash (SRD)</CardTitle>
+                <Wallet className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   SRD {financialData?.cashBalanceSRD.toFixed(2) || "0.00"}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Available liquid cash</p>
+                <p className="text-xs text-muted-foreground mt-1">Liquid cash in SRD</p>
               </CardContent>
             </Card>
 
             {/* Cash Balance USD */}
-            <Card>
+            <Card className="border-l-4 border-l-green-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Cash Balance (USD)</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Cash (USD)</CardTitle>
+                <DollarSign className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   ${financialData?.cashBalanceUSD.toFixed(2) || "0.00"}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Available liquid cash</p>
+                <p className="text-xs text-muted-foreground mt-1">Liquid cash in USD</p>
               </CardContent>
             </Card>
 
-            {/* Stock Value SRD */}
-            <Card>
+            {/* Stock Value (Cost Basis) */}
+            <Card className="border-l-4 border-l-purple-500">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Stock Value (SRD)</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Stock Value (Cost)</CardTitle>
+                <Package className="h-4 w-4 text-purple-500" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   SRD {financialData?.stockValueSRD.toFixed(2) || "0.00"}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Inventory value</p>
+                <p className="text-xs text-muted-foreground mt-1">Investment in inventory</p>
               </CardContent>
             </Card>
 
-            {/* Total Value */}
-            <Card>
+            {/* Current Worth */}
+            <Card className="border-l-4 border-l-emerald-500 bg-gradient-to-br from-emerald-50/50 to-transparent dark:from-emerald-950/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Assets (SRD)</CardTitle>
-                <TrendingUp className="h-4 w-4 text-green-600" />
+                <CardTitle className="text-sm font-medium">Current Worth</CardTitle>
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">
+                <div className="text-2xl font-bold text-emerald-600">
                   SRD {financialData?.totalValueSRD.toFixed(2) || "0.00"}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Cash + Stock value</p>
+                <p className="text-xs text-muted-foreground mt-1">Cash + Stock (cost basis)</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Potential Revenue Section */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className="border-l-4 border-l-amber-500">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Potential Revenue</CardTitle>
+                <ArrowUpRight className="h-4 w-4 text-amber-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-600">
+                  SRD {financialData?.potentialRevenueSRD?.toFixed(2) || "0.00"}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">If all inventory sells</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-cyan-500">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Expected Profit</CardTitle>
+                <TrendingUp className="h-4 w-4 text-cyan-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-cyan-600">
+                  SRD {financialData?.potentialProfitSRD?.toFixed(2) || "0.00"}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Markup on inventory</p>
+                {financialData?.stockValueSRD && financialData.stockValueSRD > 0 && (
+                  <p className="text-xs font-semibold text-cyan-600 mt-1">
+                    {((financialData?.potentialProfitSRD || 0) / financialData.stockValueSRD * 100).toFixed(1)}% margin
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-indigo-500 bg-gradient-to-br from-indigo-50/50 to-transparent dark:from-indigo-950/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">If All Sold</CardTitle>
+                <ArrowUpRight className="h-4 w-4 text-indigo-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-indigo-600">
+                  SRD {financialData?.totalValueIfSoldSRD?.toFixed(2) || "0.00"}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Cash + Revenue from sales</p>
               </CardContent>
             </Card>
           </div>

@@ -99,19 +99,46 @@ export async function GET(
     const exchangeRate = 40
     const stockValueSRD = stockValueUSD * exchangeRate
 
-    // Calculate total value in both currencies
+    // Calculate potential revenue (selling prices)
+    const potentialRevenueSRD = items.reduce((total, item) => {
+      let currentQuantity = 0
+      
+      // Calculate actual quantity based on system used - only "Arrived" status
+      if (item.useBatchSystem && item.batches.length > 0) {
+        // Only count arrived batches
+        currentQuantity = item.batches
+          .filter((batch) => batch.status === 'Arrived')
+          .reduce((sum, batch) => sum + (batch.quantity || 0), 0)
+      } else {
+        // Legacy system - only count if item status is "Arrived"
+        currentQuantity = item.status === 'Arrived' ? (item.quantityInStock || 0) : 0
+      }
+      
+      return total + (item.sellingPriceSRD || 0) * currentQuantity
+    }, 0)
+
+    // Calculate potential profit
+    const potentialProfitSRD = potentialRevenueSRD - stockValueSRD
+
+    // Calculate total value in both currencies (cost basis)
     const totalSRD = company.cashBalanceSRD + stockValueSRD
     const totalUSD = company.cashBalanceUSD + stockValueUSD
     
     // Total value in SRD including USD converted
     const totalValueSRD = totalSRD + (company.cashBalanceUSD * exchangeRate)
+    
+    // Total value if all inventory sold at selling prices
+    const totalValueIfSoldSRD = company.cashBalanceSRD + (company.cashBalanceUSD * exchangeRate) + potentialRevenueSRD
 
     return NextResponse.json({
       ...company,
       stockValueSRD: Number(stockValueSRD.toFixed(2)),
       stockValueUSD: Number(stockValueUSD.toFixed(2)),
+      potentialRevenueSRD: Number(potentialRevenueSRD.toFixed(2)),
+      potentialProfitSRD: Number(potentialProfitSRD.toFixed(2)),
       totalValueSRD: Number(totalValueSRD.toFixed(2)),
       totalValueUSD: Number((totalValueSRD / exchangeRate).toFixed(2)),
+      totalValueIfSoldSRD: Number(totalValueIfSoldSRD.toFixed(2)),
       exchangeRate,
     })
   } catch (error) {
