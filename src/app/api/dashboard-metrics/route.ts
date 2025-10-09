@@ -92,6 +92,25 @@ export async function GET(request: NextRequest) {
       return total + itemValue
     }, 0)
 
+    // Debug logging
+    console.log('[Dashboard Metrics] Calculation Summary:')
+    console.log(`  - Total items queried: ${items.length}`)
+    console.log(`  - Batch system items: ${items.filter(i => i.useBatchSystem && i.batches?.length > 0).length}`)
+    console.log(`  - Legacy items: ${items.filter(i => !i.useBatchSystem || !i.batches?.length).length}`)
+    
+    const arrivedBatchCount = items.reduce((sum, i) => 
+      sum + (i.batches?.filter((b: any) => b.status === 'Arrived').length || 0), 0
+    )
+    const totalBatchCount = items.reduce((sum, i) => sum + (i.batches?.length || 0), 0)
+    console.log(`  - Total batches: ${totalBatchCount}`)
+    console.log(`  - Arrived batches: ${arrivedBatchCount}`)
+    
+    const arrivedLegacyCount = items.filter(i => 
+      (!i.useBatchSystem || !i.batches?.length) && i.status === 'Arrived'
+    ).length
+    console.log(`  - Legacy items with Arrived status: ${arrivedLegacyCount}`)
+    console.log(`  - Total stock value USD: $${totalStockValueUSD.toFixed(2)}`)
+
     // Get total cash for selected company
     let totalCashSRD = 0
     let totalCashUSD = 0
