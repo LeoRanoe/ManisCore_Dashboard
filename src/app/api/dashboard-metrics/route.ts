@@ -12,15 +12,9 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId')
     const locationId = searchParams.get('locationId')
 
-    // Build where clause for filtering
-    const where: any = {}
-    
-    // Company filter applies at item level (items belong to companies)
-    if (companyId && companyId !== 'all') {
-      where.companyId = companyId
-    }
-    
-    // If filtering by user, we need to get locations they manage
+    console.log('[Dashboard Metrics] Filters:', { companyId, userId, locationId })
+
+    // STEP 1: Get locations managed by the user (if filtering by user)
     let managedLocationIds: string[] = []
     if (userId && userId !== 'all') {
       const managedLocations = await prisma.location.findMany({
@@ -28,49 +22,43 @@ export async function GET(request: NextRequest) {
         select: { id: true }
       })
       managedLocationIds = managedLocations.map(loc => loc.id)
+      console.log('[Dashboard Metrics] User manages locations:', managedLocationIds)
     }
+
+    // STEP 2: Build item-level where clause (company filter)
+    const where: any = {}
     
-    // Build batch-level filters
-    // NOTE: For batch system, users/locations are assigned at batch level
+    // Company filter - STRICT: Only items from this company
+    if (companyId && companyId !== 'all') {
+      where.companyId = companyId
+      console.log('[Dashboard Metrics] Filtering by company:', companyId)
+    }
+
+    // STEP 3: Build batch-level where clause
     const batchWhere: any = {}
     
-    // User filter: Include batches assigned to user OR in locations managed by user
+    // User filter for batches
     if (userId && userId !== 'all') {
       if (managedLocationIds.length > 0) {
-        // User has managed locations - include both assigned batches and managed location batches
+        // Include batches assigned to user OR in managed locations
         batchWhere.OR = [
           { assignedUserId: userId },
           { locationId: { in: managedLocationIds } }
         ]
       } else {
-        // User has no managed locations - only include assigned batches
+        // Only batches assigned to user
         batchWhere.assignedUserId = userId
       }
+      console.log('[Dashboard Metrics] Batch filter:', JSON.stringify(batchWhere))
     }
     
-    // Location filter: Only applies when explicitly filtering by location
+    // Location filter for batches
     if (locationId && locationId !== 'all') {
-      // If both user and location filters are set, combine them
-      if (batchWhere.OR) {
-        // User filter is active, add location constraint to both OR conditions
-        batchWhere.OR = batchWhere.OR.map((condition: any) => ({
-          ...condition,
-          locationId: locationId
-        }))
-      } else if (batchWhere.assignedUserId) {
-        // User filter is active, convert to OR with location
-        const userCondition = { assignedUserId: batchWhere.assignedUserId }
-        delete batchWhere.assignedUserId
-        batchWhere.AND = [
-          { OR: [userCondition, { locationId: locationId }] }
-        ]
-      } else {
-        // No user filter, just location
-        batchWhere.locationId = locationId
-      }
+      batchWhere.locationId = locationId
+      console.log('[Dashboard Metrics] Location filter:', locationId)
     }
 
-    // Get all items with their related data
+    // STEP 4: Fetch items with filtered batches
     const items = await prisma.item.findMany({
       where,
       include: {
@@ -96,7 +84,6 @@ export async function GET(request: NextRequest) {
           },
         },
         batches: {
-          // Apply batch-level filters here
           where: Object.keys(batchWhere).length > 0 ? batchWhere : undefined,
           select: {
             id: true,
@@ -122,35 +109,43 @@ export async function GET(request: NextRequest) {
         }
       },
     })
-    
-    // Filter items based on system type
-    // Batch system: keep items that have matching batches (already filtered)
-    // Legacy system: apply user/location filters at item level
+
+    console.log('[Dashboard Metrics] Raw items fetched:', items.length)
+
+    // STEP 5: Filter items based on whether they have valid data
     const filteredItems = items.filter(item => {
-      if (item.useBatchSystem && item.batches) {
-        // For batch system, item is valid if it has at least one batch
-        // (batches are already filtered by batchWhere)
-        return item.batches.length > 0
-      } else {
-        // For legacy system, apply filters at item level
-        // User filter: Check if user is assigned OR manages the location
+      // For batch-system items: Keep only if they have at least one batch after filtering
+      if (item.useBatchSystem) {
+        if (!item.batches || item.batches.length === 0) {
+          return false // No matching batches, exclude item
+        }
+        return true // Has matching batches, include item
+      } 
+      
+      // For legacy (non-batch) items: Apply filters at item level
+      else {
+        // User filter for legacy items
         if (userId && userId !== 'all') {
           const isAssignedToUser = item.assignedUserId === userId
           const isInManagedLocation = item.locationId && managedLocationIds.includes(item.locationId)
           
           if (!isAssignedToUser && !isInManagedLocation) {
-            return false
+            return false // Item not assigned to user and not in managed location
           }
         }
         
-        // Location filter
-        if (locationId && locationId !== 'all' && item.locationId !== locationId) {
-          return false
+        // Location filter for legacy items
+        if (locationId && locationId !== 'all') {
+          if (item.locationId !== locationId) {
+            return false // Item not in specified location
+          }
         }
         
-        return true
+        return true // Passes all filters
       }
     })
+
+    console.log('[Dashboard Metrics] Filtered items:', filteredItems.length)
 
     // Calculate total stock value in USD - only count "Arrived" items/batches
     const totalStockValueUSD = filteredItems.reduce((total: number, item: any) => {
