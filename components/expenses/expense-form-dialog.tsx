@@ -35,6 +35,7 @@ const expenseCategories = [
   { value: "MARKETING", label: "Marketing" },
   { value: "MAINTENANCE", label: "Maintenance" },
   { value: "MISCELLANEOUS", label: "Miscellaneous" },
+  { value: "INCOME", label: "Income" },
 ]
 
 const currencies = [

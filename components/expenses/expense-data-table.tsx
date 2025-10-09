@@ -150,7 +150,7 @@ export function ExpenseDataTable({
         </TableHeader>
         <TableBody>
           {expenses.map((expense) => {
-            const isIncome = expense.amount > 0
+            // All expenses should be positive amounts
             const displayAmount = Math.abs(expense.amount)
             
             return (
@@ -159,15 +159,10 @@ export function ExpenseDataTable({
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
                     <span>{expense.description}</span>
-                    {isIncome && (
-                      <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300">
-                        Income
-                      </Badge>
-                    )}
                   </div>
                   <div className="flex flex-wrap gap-2 mt-1 sm:hidden">
-                    <span className={`font-mono text-sm font-semibold ${isIncome ? 'text-green-600' : 'text-red-600'}`}>
-                      {isIncome ? '+' : '-'}{getCurrencySymbol(expense.currency)}{displayAmount.toFixed(2)}
+                    <span className="font-mono text-sm font-semibold text-red-600">
+                      -{getCurrencySymbol(expense.currency)}{displayAmount.toFixed(2)}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-1 md:hidden">
@@ -187,8 +182,8 @@ export function ExpenseDataTable({
                 </div>
               </TableCell>
               <TableCell className="font-mono hidden sm:table-cell">
-                <span className={`font-semibold ${isIncome ? 'text-green-600' : 'text-red-600'}`}>
-                  {isIncome ? '+' : '-'}{getCurrencySymbol(expense.currency)}{displayAmount.toFixed(2)}
+                <span className="font-semibold text-red-600">
+                  -{getCurrencySymbol(expense.currency)}{displayAmount.toFixed(2)}
                 </span>
                 <span className="ml-1 text-xs text-muted-foreground">
                   {expense.currency}
@@ -237,11 +232,11 @@ export function ExpenseDataTable({
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete Expense</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Are you sure you want to delete this {isIncome ? 'income record' : 'expense'}? This will {isIncome ? 'remove' : 'return'}{" "}
+                          Are you sure you want to delete this expense? This will return{" "}
                           <strong>
                             {getCurrencySymbol(expense.currency)}{displayAmount.toFixed(2)}
                           </strong>{" "}
-                          {isIncome ? 'from' : 'to'} {expense.company?.name || 'the company'}'s cash balance.
+                          to {expense.company?.name || 'the company'}'s cash balance.
                           <br />
                           <br />
                           This action cannot be undone.
