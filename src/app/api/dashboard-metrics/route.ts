@@ -20,14 +20,54 @@ export async function GET(request: NextRequest) {
       where.companyId = companyId
     }
     
+    // If filtering by user, we need to get locations they manage
+    let managedLocationIds: string[] = []
+    if (userId && userId !== 'all') {
+      const managedLocations = await prisma.location.findMany({
+        where: { managerId: userId },
+        select: { id: true }
+      })
+      managedLocationIds = managedLocations.map(loc => loc.id)
+    }
+    
     // Build batch-level filters
     // NOTE: For batch system, users/locations are assigned at batch level
     const batchWhere: any = {}
+    
+    // User filter: Include batches assigned to user OR in locations managed by user
     if (userId && userId !== 'all') {
-      batchWhere.assignedUserId = userId
+      if (managedLocationIds.length > 0) {
+        // User has managed locations - include both assigned batches and managed location batches
+        batchWhere.OR = [
+          { assignedUserId: userId },
+          { locationId: { in: managedLocationIds } }
+        ]
+      } else {
+        // User has no managed locations - only include assigned batches
+        batchWhere.assignedUserId = userId
+      }
     }
+    
+    // Location filter: Only applies when explicitly filtering by location
     if (locationId && locationId !== 'all') {
-      batchWhere.locationId = locationId
+      // If both user and location filters are set, combine them
+      if (batchWhere.OR) {
+        // User filter is active, add location constraint to both OR conditions
+        batchWhere.OR = batchWhere.OR.map((condition: any) => ({
+          ...condition,
+          locationId: locationId
+        }))
+      } else if (batchWhere.assignedUserId) {
+        // User filter is active, convert to OR with location
+        const userCondition = { assignedUserId: batchWhere.assignedUserId }
+        delete batchWhere.assignedUserId
+        batchWhere.AND = [
+          { OR: [userCondition, { locationId: locationId }] }
+        ]
+      } else {
+        // No user filter, just location
+        batchWhere.locationId = locationId
+      }
     }
 
     // Get all items with their related data
@@ -93,12 +133,21 @@ export async function GET(request: NextRequest) {
         return item.batches.length > 0
       } else {
         // For legacy system, apply filters at item level
-        if (userId && userId !== 'all' && item.assignedUserId !== userId) {
-          return false
+        // User filter: Check if user is assigned OR manages the location
+        if (userId && userId !== 'all') {
+          const isAssignedToUser = item.assignedUserId === userId
+          const isInManagedLocation = item.locationId && managedLocationIds.includes(item.locationId)
+          
+          if (!isAssignedToUser && !isInManagedLocation) {
+            return false
+          }
         }
+        
+        // Location filter
         if (locationId && locationId !== 'all' && item.locationId !== locationId) {
           return false
         }
+        
         return true
       }
     })
@@ -160,6 +209,8 @@ export async function GET(request: NextRequest) {
     // Get total cash for selected company
     let totalCashSRD = 0
     let totalCashUSD = 0
+    
+    // When filtering by specific company, get its cash balances
     if (companyId && companyId !== 'all') {
       const company = await prisma.company.findUnique({
         where: { id: companyId },
@@ -172,6 +223,16 @@ export async function GET(request: NextRequest) {
         totalCashSRD = company.cashBalanceSRD
         totalCashUSD = company.cashBalanceUSD
       }
+    } else {
+      // When showing all companies, aggregate their cash
+      const companies = await prisma.company.findMany({
+        select: {
+          cashBalanceSRD: true,
+          cashBalanceUSD: true,
+        }
+      })
+      totalCashSRD = companies.reduce((sum, c) => sum + c.cashBalanceSRD, 0)
+      totalCashUSD = companies.reduce((sum, c) => sum + c.cashBalanceUSD, 0)
     }
 
     const usdToSrdRate = 40
@@ -214,9 +275,10 @@ export async function GET(request: NextRequest) {
       Sold: itemCountByStatus.Sold || 0,
     }
 
-    // Company metrics (if not filtering by specific company)
+    // Company metrics - ONLY show when viewing "All Companies" with no user/location filters
+    // This gives a breakdown by company when looking at the entire portfolio
     const companyMetrics: Record<string, any> = {}
-    if (!companyId || companyId === 'all') {
+    if ((!companyId || companyId === 'all') && (!userId || userId === 'all') && (!locationId || locationId === 'all')) {
       const companyGroups = filteredItems.reduce((groups, item) => {
         const companyId = item.company.id
         if (!groups[companyId]) {
@@ -273,8 +335,8 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // User metrics (if not filtering by specific user)
-    // NOTE: For batch system, users are assigned at batch level
+    // User metrics - ONLY show when NOT filtering by a specific user
+    // This shows which users manage what inventory
     const userMetrics: Record<string, any> = {}
     if (!userId || userId === 'all') {
       const userGroups: Record<string, { name: string; items: Map<string, any> }> = {}
