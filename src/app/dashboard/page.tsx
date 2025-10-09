@@ -451,20 +451,18 @@ function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className={`text-2xl font-bold ${
-                  ((financialSummary.totalCashSRD + financialSummary.totalStockValueSRD) + 
-                  ((financialSummary.totalCashUSD + financialSummary.totalStockValueUSD) * 40) - 
+                  (financialSummary.totalCashSRD + (financialSummary.totalCashUSD * 40) + financialSummary.totalStockValueSRD - 
                   (financialSummary.totalExpensesSRD + (financialSummary.totalExpensesUSD * 40))) >= 0
                     ? 'text-emerald-600 dark:text-emerald-400' 
                     : 'text-red-600 dark:text-red-400'
                 }`}>
                   {formatCurrencyWithSign(
-                    (financialSummary.totalCashSRD + financialSummary.totalStockValueSRD) + 
-                    ((financialSummary.totalCashUSD + financialSummary.totalStockValueUSD) * 40) - 
+                    financialSummary.totalCashSRD + (financialSummary.totalCashUSD * 40) + financialSummary.totalStockValueSRD - 
                     (financialSummary.totalExpensesSRD + (financialSummary.totalExpensesUSD * 40)), 
                     "SRD"
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">(Cash + Inventory) - Expenses</p>
+                <p className="text-xs text-muted-foreground mt-1">Cash + Inventory - Expenses</p>
               </CardContent>
             </Card>
           </div>
