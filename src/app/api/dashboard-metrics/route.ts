@@ -70,8 +70,10 @@ export async function GET(request: NextRequest) {
           if (batch.status === 'Arrived') {
             const batchQty = batch.quantity || 0
             if (batchQty > 0) {
+              // Use batch cost, but fall back to item cost if batch cost is 0
+              const batchCost = batch.costPerUnitUSD || item.costPerUnitUSD || 0
               const freightPerUnit = batch.freightCostUSD / Math.max(batchQty, 1)
-              const costPerUnit = (batch.costPerUnitUSD || 0) + freightPerUnit
+              const costPerUnit = batchCost + freightPerUnit
               itemValue += costPerUnit * batchQty
             }
           }
@@ -194,8 +196,10 @@ export async function GET(request: NextRequest) {
               if (batch.status === 'Arrived') {
                 const batchQty = batch.quantity || 0
                 if (batchQty > 0) {
+                  // Use batch cost, but fall back to item cost if batch cost is 0
+                  const batchCost = batch.costPerUnitUSD || item.costPerUnitUSD || 0
                   const freightPerUnit = batch.freightCostUSD / Math.max(batchQty, 1)
-                  const costPerUnit = (batch.costPerUnitUSD || 0) + freightPerUnit
+                  const costPerUnit = batchCost + freightPerUnit
                   stockValue += costPerUnit * batchQty
                   potentialRevenue += (item.sellingPriceSRD || 0) * batchQty
                 }
@@ -252,8 +256,10 @@ export async function GET(request: NextRequest) {
               if (batch.status === 'Arrived') {
                 const batchQty = batch.quantity || 0
                 if (batchQty > 0) {
+                  // Use batch cost, but fall back to item cost if batch cost is 0
+                  const batchCost = batch.costPerUnitUSD || item.costPerUnitUSD || 0
                   const freightPerUnit = batch.freightCostUSD / Math.max(batchQty, 1)
-                  const costPerUnit = (batch.costPerUnitUSD || 0) + freightPerUnit
+                  const costPerUnit = batchCost + freightPerUnit
                   stockValue += costPerUnit * batchQty
                 }
               }

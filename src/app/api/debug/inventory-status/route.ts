@@ -46,8 +46,10 @@ export async function GET() {
             .reduce((sum, batch) => {
               const qty = batch.quantity || 0
               if (qty > 0) {
+                // Use batch cost, fall back to item cost if batch cost is 0
+                const batchCost = batch.costPerUnitUSD || item.costPerUnitUSD || 0
                 const freightPerUnit = batch.freightCostUSD / Math.max(qty, 1)
-                const costPerUnit = batch.costPerUnitUSD + freightPerUnit
+                const costPerUnit = batchCost + freightPerUnit
                 return sum + (costPerUnit * qty)
               }
               return sum
