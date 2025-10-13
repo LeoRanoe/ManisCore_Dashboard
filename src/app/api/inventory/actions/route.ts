@@ -153,13 +153,13 @@ export async function POST(request: NextRequest) {
               },
             })
 
-            // Create expense record for tracking the sale
+            // Create income record for tracking the sale
             const saleRecord = await tx.expense.create({
               data: {
                 description: `Sale of ${quantityToSell}x ${item.name}`,
                 amount: totalRevenueSRD,
                 currency: 'SRD',
-                category: 'MISCELLANEOUS',
+                category: 'INCOME',
                 notes: `Sold ${quantityToSell} units at ${finalSellingPriceSRD} SRD each. Profit: ${profitSRD.toFixed(2)} SRD`,
                 companyId: item.companyId,
               },
@@ -233,13 +233,13 @@ export async function POST(request: NextRequest) {
             },
           })
 
-          // Create expense record for tracking the sale (positive amount = revenue/income)
+          // Create income record for tracking the sale
           const saleRecord = await tx.expense.create({
             data: {
               description: `Sale of ${quantityToSell}x ${item.name}`,
-              amount: totalRevenueSRD, // Positive to indicate revenue/income
+              amount: totalRevenueSRD,
               currency: 'SRD',
-              category: 'MISCELLANEOUS',
+              category: 'INCOME',
               notes: `Sold ${quantityToSell} units at ${finalSellingPriceSRD} SRD each. Profit: ${profitSRD.toFixed(2)} SRD`,
               companyId: item.companyId,
             },

@@ -253,10 +253,14 @@ function DashboardPage() {
             })
           )
 
-          // Calculate expense totals
+          // Calculate expense totals (excluding INCOME)
           const expenses = expensesData?.expenses || []
-          const totalExpensesSRD = expenses.filter((e: any) => e.currency === "SRD").reduce((sum: number, e: any) => sum + e.amount, 0)
-          const totalExpensesUSD = expenses.filter((e: any) => e.currency === "USD").reduce((sum: number, e: any) => sum + e.amount, 0)
+          const totalExpensesSRD = expenses
+            .filter((e: any) => e.currency === "SRD" && e.category !== "INCOME")
+            .reduce((sum: number, e: any) => sum + e.amount, 0)
+          const totalExpensesUSD = expenses
+            .filter((e: any) => e.currency === "USD" && e.category !== "INCOME")
+            .reduce((sum: number, e: any) => sum + e.amount, 0)
 
           setFinancialSummary({
             totalCashSRD: companiesWithFinancials.reduce((sum, c) => sum + c.cashBalanceSRD, 0),
