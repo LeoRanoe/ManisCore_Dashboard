@@ -25,6 +25,13 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { useItems } from "@/lib/hooks"
 import { useCompany } from "../../../../contexts/company-context"
@@ -58,6 +65,19 @@ interface Item {
   createdAt: string
 }
 
+interface Location {
+  id: string
+  name: string
+  companyId: string
+}
+
+interface User {
+  id: string
+  name: string
+  email: string
+  companyId: string
+}
+
 const statusConfig = {
   ToOrder: { label: "To Order", variant: "secondary" as const },
   Ordered: { label: "Ordered", variant: "warning" as const },
@@ -72,7 +92,11 @@ function StockManagementPage() {
   const [quantity, setQuantity] = useState(1)
   const [sellPrice, setSellPrice] = useState(0)
   const [reason, setReason] = useState("")
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("")
+  const [selectedUserId, setSelectedUserId] = useState<string>("")
   const [processing, setProcessing] = useState(false)
+  const [locations, setLocations] = useState<Location[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const { toast } = useToast()
 
   // Use dynamic hooks for automatic company filtering and error handling
@@ -85,6 +109,32 @@ function StockManagementPage() {
 
   const { selectedCompany } = useCompany()
   const items = itemsData?.items || []
+
+  // Fetch locations and users
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [locationsRes, usersRes] = await Promise.all([
+          fetch('/api/locations'),
+          fetch('/api/users')
+        ])
+        
+        if (locationsRes.ok) {
+          const locationsData = await locationsRes.json()
+          setLocations(locationsData.locations || [])
+        }
+        
+        if (usersRes.ok) {
+          const usersData = await usersRes.json()
+          setUsers(usersData.users || [])
+        }
+      } catch (error) {
+        console.error('Error fetching locations/users:', error)
+      }
+    }
+    
+    fetchData()
+  }, [])
 
   // Error state
   if (itemsError) {
@@ -137,6 +187,8 @@ function StockManagementPage() {
         case "sell":
           body.quantityToSell = quantity
           body.sellingPriceSRD = sellPrice
+          body.locationId = selectedLocationId || undefined
+          body.assignedUserId = selectedUserId || undefined
           break
       }
 
@@ -179,6 +231,8 @@ function StockManagementPage() {
     setQuantity(1)
     setSellPrice(item.sellingPriceSRD)
     setReason("")
+    setSelectedLocationId(item.locationId || "")
+    setSelectedUserId(item.assignedUserId || "")
   }
 
   const closeDialog = () => {
@@ -187,6 +241,8 @@ function StockManagementPage() {
     setQuantity(1)
     setSellPrice(0)
     setReason("")
+    setSelectedLocationId("")
+    setSelectedUserId("")
   }
 
   return (
@@ -344,17 +400,72 @@ function StockManagementPage() {
             </div>
 
             {stockAction === "sell" && (
-              <div>
-                <Label htmlFor="sellPrice">Selling Price (SRD per unit)</Label>
-                <Input
-                  id="sellPrice"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={sellPrice}
-                  onChange={(e) => setSellPrice(parseFloat(e.target.value) || 0)}
-                />
-              </div>
+              <>
+                <div>
+                  <Label htmlFor="sellPrice">Selling Price (SRD per unit)</Label>
+                  <Input
+                    id="sellPrice"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={sellPrice}
+                    onChange={(e) => setSellPrice(parseFloat(e.target.value) || 0)}
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Total revenue: SRD {(sellPrice * quantity).toFixed(2)}
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="location">Location</Label>
+                  <Select
+                    value={selectedLocationId}
+                    onValueChange={setSelectedLocationId}
+                  >
+                    <SelectTrigger id="location">
+                      <SelectValue placeholder="Select location (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No location</SelectItem>
+                      {locations
+                        .filter(loc => loc.companyId === selectedItem?.companyId)
+                        .map(location => (
+                          <SelectItem key={location.id} value={location.id}>
+                            {location.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Track which location this sale is from
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="user">Sold By</Label>
+                  <Select
+                    value={selectedUserId}
+                    onValueChange={setSelectedUserId}
+                  >
+                    <SelectTrigger id="user">
+                      <SelectValue placeholder="Select user (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Not specified</SelectItem>
+                      {users
+                        .filter(user => user.companyId === selectedItem?.companyId)
+                        .map(user => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Track who made this sale
+                  </p>
+                </div>
+              </>
             )}
 
             <div>
