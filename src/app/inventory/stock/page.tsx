@@ -92,8 +92,8 @@ function StockManagementPage() {
   const [quantity, setQuantity] = useState(1)
   const [sellPrice, setSellPrice] = useState(0)
   const [reason, setReason] = useState("")
-  const [selectedLocationId, setSelectedLocationId] = useState<string>("")
-  const [selectedUserId, setSelectedUserId] = useState<string>("")
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("none")
+  const [selectedUserId, setSelectedUserId] = useState<string>("none")
   const [processing, setProcessing] = useState(false)
   const [locations, setLocations] = useState<Location[]>([])
   const [users, setUsers] = useState<User[]>([])
@@ -187,8 +187,8 @@ function StockManagementPage() {
         case "sell":
           body.quantityToSell = quantity
           body.sellingPriceSRD = sellPrice
-          body.locationId = selectedLocationId || undefined
-          body.assignedUserId = selectedUserId || undefined
+          body.locationId = (selectedLocationId && selectedLocationId !== "none") ? selectedLocationId : undefined
+          body.assignedUserId = (selectedUserId && selectedUserId !== "none") ? selectedUserId : undefined
           break
       }
 
@@ -231,8 +231,8 @@ function StockManagementPage() {
     setQuantity(1)
     setSellPrice(item.sellingPriceSRD)
     setReason("")
-    setSelectedLocationId(item.locationId || "")
-    setSelectedUserId(item.assignedUserId || "")
+    setSelectedLocationId(item.locationId || "none")
+    setSelectedUserId(item.assignedUserId || "none")
   }
 
   const closeDialog = () => {
@@ -241,8 +241,8 @@ function StockManagementPage() {
     setQuantity(1)
     setSellPrice(0)
     setReason("")
-    setSelectedLocationId("")
-    setSelectedUserId("")
+    setSelectedLocationId("none")
+    setSelectedUserId("none")
   }
 
   return (
@@ -419,16 +419,16 @@ function StockManagementPage() {
                 <div>
                   <Label htmlFor="location">Location</Label>
                   <Select
-                    value={selectedLocationId}
-                    onValueChange={setSelectedLocationId}
+                    value={selectedLocationId || "none"}
+                    onValueChange={(value) => setSelectedLocationId(value === "none" ? "" : value)}
                   >
                     <SelectTrigger id="location">
                       <SelectValue placeholder="Select location (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No location</SelectItem>
-                      {locations
-                        .filter(loc => loc.companyId === selectedItem?.companyId)
+                      <SelectItem value="none">No location</SelectItem>
+                      {selectedItem && locations
+                        .filter(loc => loc.companyId === selectedItem.companyId)
                         .map(location => (
                           <SelectItem key={location.id} value={location.id}>
                             {location.name}
@@ -444,16 +444,16 @@ function StockManagementPage() {
                 <div>
                   <Label htmlFor="user">Sold By</Label>
                   <Select
-                    value={selectedUserId}
-                    onValueChange={setSelectedUserId}
+                    value={selectedUserId || "none"}
+                    onValueChange={(value) => setSelectedUserId(value === "none" ? "" : value)}
                   >
                     <SelectTrigger id="user">
                       <SelectValue placeholder="Select user (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Not specified</SelectItem>
-                      {users
-                        .filter(user => user.companyId === selectedItem?.companyId)
+                      <SelectItem value="none">Not specified</SelectItem>
+                      {selectedItem && users
+                        .filter(user => user.companyId === selectedItem.companyId)
                         .map(user => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.name}
