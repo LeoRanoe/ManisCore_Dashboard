@@ -288,20 +288,51 @@ export async function POST(request: NextRequest) {
 
         // Check if item uses batch system
         if (item.useBatchSystem) {
-          // For batch-system items, create a new batch
-          const newBatch = await prisma.stockBatch.create({
-            data: {
+          // **BATCH CONSOLIDATION LOGIC**
+          // Check if a similar batch already exists (same item, location, status, and cost)
+          const existingBatch = await prisma.stockBatch.findFirst({
+            where: {
               itemId,
-              quantity: quantityToAdd,
-              originalQuantity: quantityToAdd, // Set original quantity on creation
+              locationId: item.locationId || null,
               status: 'Arrived',
               costPerUnitUSD: item.costPerUnitUSD,
               freightCostUSD: 0,
-              notes: reason || 'Manual stock addition',
-              locationId: item.locationId,
-              assignedUserId: item.assignedUserId,
+            },
+            orderBy: {
+              createdAt: 'desc'
             }
           })
+
+          let newBatch
+          if (existingBatch) {
+            // Consolidate into existing batch
+            console.log(`Consolidating: Adding ${quantityToAdd} units to existing batch ${existingBatch.id}`)
+            newBatch = await prisma.stockBatch.update({
+              where: { id: existingBatch.id },
+              data: {
+                quantity: existingBatch.quantity + quantityToAdd,
+                originalQuantity: existingBatch.originalQuantity + quantityToAdd,
+                notes: existingBatch.notes 
+                  ? `${existingBatch.notes}\n[Added: +${quantityToAdd} units on ${new Date().toISOString().split('T')[0]}${reason ? ` - ${reason}` : ''}]`
+                  : `Added: +${quantityToAdd} units${reason ? ` - ${reason}` : ''}`,
+              }
+            })
+          } else {
+            // Create new batch only if no matching batch exists
+            newBatch = await prisma.stockBatch.create({
+              data: {
+                itemId,
+                quantity: quantityToAdd,
+                originalQuantity: quantityToAdd,
+                status: 'Arrived',
+                costPerUnitUSD: item.costPerUnitUSD,
+                freightCostUSD: 0,
+                notes: reason || 'Manual stock addition',
+                locationId: item.locationId,
+                assignedUserId: item.assignedUserId,
+              }
+            })
+          }
 
           // Sync item quantity from batches
           await syncItemQuantityFromBatches(itemId)

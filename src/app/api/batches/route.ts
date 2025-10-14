@@ -83,6 +83,57 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
+    // **BATCH CONSOLIDATION LOGIC**
+    // Check if a similar batch already exists (same item, location, status, and cost)
+    // If yes, just update the quantity instead of creating a new batch
+    const existingBatch = await prisma.stockBatch.findFirst({
+      where: {
+        itemId,
+        locationId: locationId || null,
+        status: status || 'ToOrder',
+        costPerUnitUSD,
+        freightCostUSD: freightCostUSD || 0,
+      },
+      orderBy: {
+        createdAt: 'desc' // Get the most recent matching batch
+      }
+    })
+
+    // If a matching batch exists, consolidate by updating quantity
+    if (existingBatch) {
+      console.log(`Consolidating batch: Adding ${quantity} units to existing batch ${existingBatch.id}`)
+      
+      const updatedBatch = await prisma.stockBatch.update({
+        where: { id: existingBatch.id },
+        data: {
+          quantity: existingBatch.quantity + quantity,
+          originalQuantity: existingBatch.originalQuantity + quantity,
+          // Update notes to track consolidation
+          notes: existingBatch.notes 
+            ? `${existingBatch.notes}\n[Consolidated: +${quantity} units on ${new Date().toISOString().split('T')[0]}]`
+            : `Consolidated: +${quantity} units on ${new Date().toISOString().split('T')[0]}`,
+        },
+        include: {
+          item: {
+            include: {
+              company: true
+            }
+          },
+          location: true,
+          assignedUser: true
+        }
+      })
+
+      // Sync item quantity from all batches
+      await syncItemQuantityFromBatches(itemId)
+
+      return NextResponse.json({ 
+        ...updatedBatch,
+        consolidated: true,
+        message: `Consolidated ${quantity} units into existing batch`
+      }, { status: 200 })
+    }
+
     // If status is "Ordered", deduct cash from company
     if (status === 'Ordered') {
       const totalCost = (costPerUnitUSD * quantity) + (freightCostUSD || 0)

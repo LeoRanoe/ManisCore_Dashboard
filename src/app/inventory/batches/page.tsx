@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { BatchDataTable } from "@/components/inventory/batch-data-table"
 import { BatchFormDialog } from "@/components/inventory/batch-form-dialog"
 import { BatchTransferDialog } from "@/components/inventory/batch-transfer-dialog"
 import { Button } from "@/components/ui/button"
-import { Plus, RefreshCw } from "lucide-react"
+import { Plus, RefreshCw, Package, ChevronDown, ChevronRight } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { Badge } from "@/components/ui/badge"
 
 interface StockBatch {
   id: string
@@ -53,6 +54,8 @@ export default function BatchesPage() {
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showTransferDialog, setShowTransferDialog] = useState(false)
   const [selectedBatch, setSelectedBatch] = useState<StockBatch | null>(null)
+  const [viewMode, setViewMode] = useState<'grouped' | 'detailed'>('grouped')
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
 
   const fetchBatches = async () => {
     try {
@@ -108,6 +111,56 @@ export default function BatchesPage() {
     loadData()
   }, [])
 
+  // Group batches by item for consolidated view
+  const groupedBatches = useMemo(() => {
+    const groups = new Map<string, {
+      itemId: string
+      itemName: string
+      totalQuantity: number
+      batches: StockBatch[]
+      locations: Set<string>
+      statuses: Set<string>
+    }>()
+
+    batches.forEach(batch => {
+      const itemName = batch.item?.name || 'Unknown Item'
+      if (!groups.has(batch.itemId)) {
+        groups.set(batch.itemId, {
+          itemId: batch.itemId,
+          itemName,
+          totalQuantity: 0,
+          batches: [],
+          locations: new Set(),
+          statuses: new Set()
+        })
+      }
+      
+      const group = groups.get(batch.itemId)!
+      group.totalQuantity += batch.quantity
+      group.batches.push(batch)
+      if (batch.location?.name) {
+        group.locations.add(batch.location.name)
+      }
+      group.statuses.add(batch.status)
+    })
+
+    return Array.from(groups.values()).sort((a, b) => 
+      a.itemName.localeCompare(b.itemName)
+    )
+  }, [batches])
+
+  const toggleItemExpanded = (itemId: string) => {
+    setExpandedItems(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId)
+      } else {
+        newSet.add(itemId)
+      }
+      return newSet
+    })
+  }
+
   const handleEdit = (batch: StockBatch) => {
     setSelectedBatch(batch)
     setShowEditDialog(true)
@@ -138,6 +191,21 @@ export default function BatchesPage() {
         </div>
         <div className="flex gap-2">
           <Button
+            variant={viewMode === 'grouped' ? 'default' : 'outline'}
+            onClick={() => setViewMode('grouped')}
+            size="sm"
+          >
+            <Package className="h-4 w-4 mr-2" />
+            Grouped
+          </Button>
+          <Button
+            variant={viewMode === 'detailed' ? 'default' : 'outline'}
+            onClick={() => setViewMode('detailed')}
+            size="sm"
+          >
+            Detailed
+          </Button>
+          <Button
             variant="outline"
             onClick={loadData}
             disabled={loading}
@@ -154,7 +222,7 @@ export default function BatchesPage() {
 
       {loading ? (
         <div className="text-center py-8">Loading batches...</div>
-      ) : (
+      ) : viewMode === 'detailed' ? (
         <BatchDataTable
           batches={batches}
           onEdit={handleEdit}
@@ -162,6 +230,73 @@ export default function BatchesPage() {
           onTransfer={handleTransfer}
           onRefresh={fetchBatches}
         />
+      ) : (
+        <div className="space-y-4">
+          {groupedBatches.map(group => {
+            const isExpanded = expandedItems.has(group.itemId)
+            return (
+              <div key={group.itemId} className="border rounded-lg overflow-hidden">
+                <div 
+                  className="flex items-center justify-between p-4 bg-muted/50 cursor-pointer hover:bg-muted"
+                  onClick={() => toggleItemExpanded(group.itemId)}
+                >
+                  <div className="flex items-center gap-3">
+                    {isExpanded ? (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <Package className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <h3 className="font-semibold">{group.itemName}</h3>
+                      <div className="flex gap-2 mt-1">
+                        <Badge variant="secondary">
+                          {group.totalQuantity} units
+                        </Badge>
+                        <Badge variant="outline">
+                          {group.batches.length} batch{group.batches.length !== 1 ? 'es' : ''}
+                        </Badge>
+                        {group.locations.size > 0 && (
+                          <Badge variant="outline">
+                            {group.locations.size} location{group.locations.size !== 1 ? 's' : ''}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {Array.from(group.statuses).map(status => (
+                      <Badge 
+                        key={status}
+                        variant={status === 'IN_STOCK' ? 'default' : status === 'RESERVED' ? 'secondary' : 'destructive'}
+                      >
+                        {status.replace('_', ' ')}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                
+                {isExpanded && (
+                  <div className="p-4 bg-background">
+                    <BatchDataTable
+                      batches={group.batches}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      onTransfer={handleTransfer}
+                      onRefresh={fetchBatches}
+                    />
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          
+          {groupedBatches.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              No batches found. Create your first batch to get started.
+            </div>
+          )}
+        </div>
       )}
 
       <BatchFormDialog
