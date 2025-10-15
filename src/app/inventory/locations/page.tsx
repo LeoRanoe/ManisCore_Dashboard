@@ -291,7 +291,7 @@ function LocationManagementPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            Items by Location
+            Items by Location (Aggregated View)
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -309,52 +309,60 @@ function LocationManagementPage() {
                   <TableRow>
                     <TableHead>Item Name</TableHead>
                     <TableHead>Company</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Quantity</TableHead>
+                    <TableHead>Locations</TableHead>
+                    <TableHead>Total Quantity</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Cost/Unit</TableHead>
-                    <TableHead>Total Cost</TableHead>
-                    <TableHead>Ordered Date</TableHead>
-                    <TableHead>Arrived Date</TableHead>
+                    <TableHead>Batches</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredBatches.map((batch) => (
-                    <TableRow key={batch.id}>
-                      <TableCell className="font-medium">{batch.item.name}</TableCell>
-                      <TableCell>{batch.item.company.name}</TableCell>
+                  {aggregatedItems.map((item) => (
+                    <TableRow key={item.itemId}>
+                      <TableCell className="font-medium">{item.itemName}</TableCell>
+                      <TableCell>{item.company.name}</TableCell>
                       <TableCell>
-                        {batch.location ? (
+                        {item.locations.length === 0 ? (
+                          <span className="text-muted-foreground">No location</span>
+                        ) : item.locations.length === 1 ? (
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3 text-blue-500" />
-                            {batch.location.name}
+                            {item.locations[0].name} ({item.locations[0].quantity} units)
                           </span>
                         ) : (
-                          <span className="text-muted-foreground">No location</span>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3 text-blue-500" />
+                            <Badge variant="outline" className="text-xs">
+                              {item.locations.length} locations
+                            </Badge>
+                            <div className="text-xs text-muted-foreground ml-1">
+                              {item.locations.map(loc => `${loc.name} (${loc.quantity})`).join(', ')}
+                            </div>
+                          </div>
                         )}
                       </TableCell>
-                      <TableCell>{batch.quantity} units</TableCell>
+                      <TableCell>{item.totalQuantity} units</TableCell>
                       <TableCell>
-                        <Badge variant={statusConfig[batch.status].variant}>
-                          {statusConfig[batch.status].label}
+                        <Badge variant={statusConfig[item.status].variant}>
+                          {statusConfig[item.status].label}
                         </Badge>
                       </TableCell>
-                      <TableCell>${batch.costPerUnitUSD.toFixed(2)}</TableCell>
-                      <TableCell>${(batch.costPerUnitUSD * batch.quantity + batch.freightCostUSD).toFixed(2)}</TableCell>
-                      <TableCell>{batch.orderDate ? new Date(batch.orderDate).toLocaleDateString() : '-'}</TableCell>
-                      <TableCell>{batch.arrivedDate ? new Date(batch.arrivedDate).toLocaleDateString() : '-'}</TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openTransferDialog(batch)}
-                            disabled={batch.status === 'Sold'}
-                          >
-                            <Move className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Badge variant="outline">{item.batches.length} batches</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            // Open first arrived batch for transfer
+                            const arrivedBatch = item.batches.find(b => b.status === 'Arrived')
+                            if (arrivedBatch) openTransferDialog(arrivedBatch)
+                          }}
+                          disabled={!item.batches.some(b => b.status === 'Arrived')}
+                        >
+                          <Move className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
