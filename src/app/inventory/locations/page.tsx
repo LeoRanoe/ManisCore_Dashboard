@@ -36,6 +36,11 @@ interface StockBatch {
   status: "ToOrder" | "Ordered" | "Arrived" | "Sold"
   costPerUnitUSD: number
   freightCostUSD: number
+  orderDate?: string | null
+  expectedArrival?: string | null
+  arrivedDate?: string | null
+  orderNumber?: string | null
+  notes?: string | null
   item: {
     id: string
     name: string
@@ -139,6 +144,58 @@ function LocationManagementPage() {
     return true
   })
 
+  // Group batches by item to eliminate duplicates
+  const itemsMap = new Map<string, {
+    itemId: string
+    itemName: string
+    company: { id: string; name: string }
+    totalQuantity: number
+    status: "ToOrder" | "Ordered" | "Arrived" | "Sold"
+    locations: Array<{ id: string; name: string; quantity: number }>
+    batches: StockBatch[]
+  }>()
+
+  filteredBatches.forEach(batch => {
+    const key = batch.itemId
+    if (!itemsMap.has(key)) {
+      itemsMap.set(key, {
+        itemId: batch.itemId,
+        itemName: batch.item.name,
+        company: batch.item.company,
+        totalQuantity: 0,
+        status: batch.status,
+        locations: [],
+        batches: []
+      })
+    }
+
+    const itemData = itemsMap.get(key)!
+    itemData.totalQuantity += batch.quantity
+    itemData.batches.push(batch)
+
+    // Track locations
+    if (batch.locationId && batch.location) {
+      const existingLoc = itemData.locations.find(l => l.id === batch.locationId)
+      if (existingLoc) {
+        existingLoc.quantity += batch.quantity
+      } else {
+        itemData.locations.push({
+          id: batch.location.id,
+          name: batch.location.name,
+          quantity: batch.quantity
+        })
+      }
+    }
+
+    // Update status to most advanced status
+    const statusOrder = { 'ToOrder': 0, 'Ordered': 1, 'Arrived': 2, 'Sold': 3 }
+    if (statusOrder[batch.status] > statusOrder[itemData.status]) {
+      itemData.status = batch.status
+    }
+  })
+
+  const aggregatedItems = Array.from(itemsMap.values())
+
   const batchesByLocation = filteredBatches.reduce(
     (acc: Record<string, { name: string; batches: StockBatch[] }>, batch) => {
       const locationKey = batch.locationId || "unassigned"
@@ -239,11 +296,11 @@ function LocationManagementPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading batches...</div>
-          ) : filteredBatches.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">Loading items...</div>
+          ) : aggregatedItems.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No batches found</p>
+              <p>No items found</p>
             </div>
           ) : (
             <div className="rounded-md border">
@@ -251,10 +308,14 @@ function LocationManagementPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Item Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Current Location</TableHead>
                     <TableHead>Company</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Quantity</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Cost/Unit</TableHead>
+                    <TableHead>Total Cost</TableHead>
+                    <TableHead>Ordered Date</TableHead>
+                    <TableHead>Arrived Date</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -262,12 +323,7 @@ function LocationManagementPage() {
                   {filteredBatches.map((batch) => (
                     <TableRow key={batch.id}>
                       <TableCell className="font-medium">{batch.item.name}</TableCell>
-                      <TableCell>
-                        <Badge variant={statusConfig[batch.status].variant}>
-                          {statusConfig[batch.status].label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{batch.quantity} units</TableCell>
+                      <TableCell>{batch.item.company.name}</TableCell>
                       <TableCell>
                         {batch.location ? (
                           <span className="flex items-center gap-1">
@@ -275,19 +331,30 @@ function LocationManagementPage() {
                             {batch.location.name}
                           </span>
                         ) : (
-                          <span className="text-muted-foreground">Unassigned</span>
+                          <span className="text-muted-foreground">No location</span>
                         )}
                       </TableCell>
-                      <TableCell>{batch.item.company.name}</TableCell>
+                      <TableCell>{batch.quantity} units</TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openTransferDialog(batch)}
-                        >
-                          <Move className="h-4 w-4 mr-2" />
-                          Move
-                        </Button>
+                        <Badge variant={statusConfig[batch.status].variant}>
+                          {statusConfig[batch.status].label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>${batch.costPerUnitUSD.toFixed(2)}</TableCell>
+                      <TableCell>${(batch.costPerUnitUSD * batch.quantity + batch.freightCostUSD).toFixed(2)}</TableCell>
+                      <TableCell>{batch.orderDate ? new Date(batch.orderDate).toLocaleDateString() : '-'}</TableCell>
+                      <TableCell>{batch.arrivedDate ? new Date(batch.arrivedDate).toLocaleDateString() : '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openTransferDialog(batch)}
+                            disabled={batch.status === 'Sold'}
+                          >
+                            <Move className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

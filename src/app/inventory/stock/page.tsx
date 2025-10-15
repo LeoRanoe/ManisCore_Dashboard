@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { ArrowLeft, Package, Plus, Minus, Search, Filter } from "lucide-react"
+import { ArrowLeft, Package, Plus, Minus, Search, Filter, MapPin } from "lucide-react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -62,6 +62,10 @@ interface Item {
     id: string
     name: string
   }
+  batchCount?: number
+  locationCount?: number
+  batchLocations?: Array<{ id: string; name: string }>
+  hasMultipleLocations?: boolean
   createdAt: string
 }
 
@@ -321,8 +325,29 @@ function StockManagementPage() {
                       <span className={item.quantityInStock === 0 ? "text-red-600" : ""}>
                         {item.quantityInStock} units
                       </span>
+                      {item.batchCount && item.batchCount > 0 && (
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          {item.batchCount} batches
+                        </Badge>
+                      )}
                     </TableCell>
-                    <TableCell>{item.location?.name || "No location"}</TableCell>
+                    <TableCell>
+                      {item.hasMultipleLocations ? (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-blue-500" />
+                          <Badge variant="outline" className="text-xs">
+                            {item.locationCount} locations
+                          </Badge>
+                        </div>
+                      ) : item.location ? (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-blue-500" />
+                          {item.location.name}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">No location</span>
+                      )}
+                    </TableCell>
                     <TableCell>SRD {item.sellingPriceSRD.toFixed(2)}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
