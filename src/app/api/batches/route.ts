@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { syncItemQuantityFromBatches } from '@/lib/utils'
+import { syncItemQuantityFromBatches, syncItemLocationFromBatches } from '@/lib/utils'
+import { validateBatchOperation } from '@/lib/validation-middleware'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,31 +74,46 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get item to check company and handle cash deduction
-    const item = await prisma.item.findUnique({
-      where: { id: itemId },
-      include: { company: true }
+    // Validate batch operation
+    const validation = await validateBatchOperation('create', {
+      itemId,
+      quantity,
+      locationId: locationId || null,
+      status: status || 'ToOrder'
     })
 
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: validation.errors },
+        { status: 400 }
+      )
+    }
+
+    const item = validation.item
     if (!item) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
-    // **BATCH CONSOLIDATION LOGIC**
-    // Check if a similar batch already exists (same item, location, status, and cost)
-    // If yes, just update the quantity instead of creating a new batch
-    const existingBatch = await prisma.stockBatch.findFirst({
-      where: {
-        itemId,
-        locationId: locationId || null,
-        status: status || 'ToOrder',
-        costPerUnitUSD,
-        freightCostUSD: freightCostUSD || 0,
-      },
-      orderBy: {
-        createdAt: 'desc' // Get the most recent matching batch
-      }
-    })
+    // **BATCH CONSOLIDATION LOGIC - IMPROVED**
+    // Check if a similar batch already exists (same item, location, status, and costs)
+    // Only consolidate if status is NOT 'Sold' (sold batches should remain separate for tracking)
+    const shouldCheckConsolidation = status !== 'Sold'
+    let existingBatch = null
+
+    if (shouldCheckConsolidation) {
+      existingBatch = await prisma.stockBatch.findFirst({
+        where: {
+          itemId,
+          locationId: locationId || null,
+          status: status || 'ToOrder',
+          costPerUnitUSD,
+          freightCostUSD: freightCostUSD || 0,
+        },
+        orderBy: {
+          createdAt: 'desc' // Get the most recent matching batch
+        }
+      })
+    }
 
     // If a matching batch exists, consolidate by updating quantity
     if (existingBatch) {
@@ -126,6 +142,9 @@ export async function POST(request: NextRequest) {
 
       // Sync item quantity from all batches
       await syncItemQuantityFromBatches(itemId)
+      
+      // Sync item location if item doesn't have one
+      await syncItemLocationFromBatches(itemId)
 
       return NextResponse.json({ 
         ...updatedBatch,
@@ -185,6 +204,9 @@ export async function POST(request: NextRequest) {
 
     // Sync item quantity from all batches
     await syncItemQuantityFromBatches(itemId)
+    
+    // Sync item location if item doesn't have one
+    await syncItemLocationFromBatches(itemId)
 
     return NextResponse.json(batch, { status: 201 })
   } catch (error) {

@@ -31,7 +31,10 @@ const BatchFormSchema = z.object({
   status: z.enum(["ToOrder", "Ordered", "Arrived", "Sold"]),
   costPerUnitUSD: z.coerce.number().min(0, "Cost must be positive"),
   freightCostUSD: z.coerce.number().min(0, "Freight cost must be positive"),
-  sellingPriceSRD: z.coerce.number().min(0, "Selling price must be positive"),
+  orderDate: z.string().optional(),
+  expectedArrival: z.string().optional(),
+  orderNumber: z.string().optional(),
+  notes: z.string().optional(),
 })
 
 type BatchFormData = z.infer<typeof BatchFormSchema>
@@ -56,7 +59,10 @@ interface StockBatch {
   status: "ToOrder" | "Ordered" | "Arrived" | "Sold"
   costPerUnitUSD: number
   freightCostUSD: number
-  sellingPriceSRD: number
+  orderDate?: string | null
+  expectedArrival?: string | null
+  orderNumber?: string | null
+  notes?: string | null
 }
 
 interface BatchFormDialogProps {
@@ -97,7 +103,10 @@ export function BatchFormDialog({
       status: "ToOrder" as const,
       costPerUnitUSD: 0,
       freightCostUSD: 0,
-      sellingPriceSRD: 0,
+      orderDate: "",
+      expectedArrival: "",
+      orderNumber: "",
+      notes: "",
     },
   })
 
@@ -112,7 +121,10 @@ export function BatchFormDialog({
       setValue("status", batch.status)
       setValue("costPerUnitUSD", batch.costPerUnitUSD)
       setValue("freightCostUSD", batch.freightCostUSD)
-      setValue("sellingPriceSRD", batch.sellingPriceSRD)
+      setValue("orderDate", batch.orderDate ? batch.orderDate.split('T')[0] : "")
+      setValue("expectedArrival", batch.expectedArrival ? batch.expectedArrival.split('T')[0] : "")
+      setValue("orderNumber", batch.orderNumber || "")
+      setValue("notes", batch.notes || "")
     } else {
       reset()
     }
@@ -146,8 +158,11 @@ export function BatchFormDialog({
         quantity: Number(data.quantity),
         costPerUnitUSD: Number(data.costPerUnitUSD),
         freightCostUSD: Number(data.freightCostUSD),
-        sellingPriceSRD: Number(data.sellingPriceSRD),
         locationId: data.locationId || undefined,
+        orderDate: data.orderDate || undefined,
+        expectedArrival: data.expectedArrival || undefined,
+        orderNumber: data.orderNumber || undefined,
+        notes: data.notes || undefined,
       }
 
       const response = await fetch(url, {
@@ -229,7 +244,6 @@ export function BatchFormDialog({
               <Select
                 value={watch("locationId") || undefined}
                 onValueChange={(value) => setValue("locationId", value)}
-                disabled={!selectedItem}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select location (optional)" />
@@ -242,6 +256,11 @@ export function BatchFormDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {batch && (
+                <p className="text-xs text-muted-foreground">
+                  Location is editable. Changes will update item location if needed.
+                </p>
+              )}
             </div>
 
             {/* Quantity */}
@@ -310,19 +329,46 @@ export function BatchFormDialog({
               )}
             </div>
 
-            {/* Selling Price SRD */}
-            <div className="space-y-2 col-span-2">
-              <Label htmlFor="sellingPriceSRD">Selling Price (SRD) *</Label>
+            {/* Order Date */}
+            <div className="space-y-2">
+              <Label htmlFor="orderDate">Order Date</Label>
               <Input
-                id="sellingPriceSRD"
-                type="number"
-                step="0.01"
-                min="0"
-                {...register("sellingPriceSRD")}
+                id="orderDate"
+                type="date"
+                {...register("orderDate")}
               />
-              {errors.sellingPriceSRD && (
-                <p className="text-sm text-destructive">{errors.sellingPriceSRD.message}</p>
-              )}
+            </div>
+
+            {/* Expected Arrival */}
+            <div className="space-y-2">
+              <Label htmlFor="expectedArrival">Expected Arrival</Label>
+              <Input
+                id="expectedArrival"
+                type="date"
+                {...register("expectedArrival")}
+              />
+            </div>
+
+            {/* Order Number */}
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="orderNumber">Order Number</Label>
+              <Input
+                id="orderNumber"
+                type="text"
+                placeholder="Optional order reference"
+                {...register("orderNumber")}
+              />
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Input
+                id="notes"
+                type="text"
+                placeholder="Additional notes (optional)"
+                {...register("notes")}
+              />
             </div>
           </div>
 

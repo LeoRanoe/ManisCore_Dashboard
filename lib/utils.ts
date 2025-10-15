@@ -83,6 +83,80 @@ export async function syncItemQuantityFromBatches(itemId: string) {
 }
 
 /**
+ * Synchronizes item location with the primary location of its batches
+ * Sets the item's location to the location with the most batches
+ * @param itemId The ID of the item to synchronize
+ * @returns The updated item with synchronized location
+ */
+export async function syncItemLocationFromBatches(itemId: string) {
+  try {
+    const item = await prisma.item.findUnique({
+      where: { id: itemId },
+      include: {
+        batches: {
+          where: {
+            locationId: { not: null }
+          },
+          include: {
+            location: true
+          }
+        }
+      }
+    })
+
+    if (!item) {
+      throw new Error(`Item ${itemId} not found`)
+    }
+
+    // Only sync if item uses batch system
+    if (!item.useBatchSystem) {
+      return item
+    }
+
+    // If item already has a location, don't override it
+    if (item.locationId) {
+      return item
+    }
+
+    // If no batches with locations, skip
+    if (item.batches.length === 0) {
+      return item
+    }
+
+    // Find the location with the most batches
+    const locationCounts = new Map<string, number>()
+    item.batches.forEach(batch => {
+      if (batch.locationId) {
+        locationCounts.set(batch.locationId, (locationCounts.get(batch.locationId) || 0) + 1)
+      }
+    })
+
+    let primaryLocationId: string | null = null
+    let maxCount = 0
+    locationCounts.forEach((count, locationId) => {
+      if (count > maxCount) {
+        maxCount = count
+        primaryLocationId = locationId
+      }
+    })
+
+    if (primaryLocationId) {
+      const updatedItem = await prisma.item.update({
+        where: { id: itemId },
+        data: { locationId: primaryLocationId }
+      })
+      console.log(`✅ Synced item ${itemId} location to ${primaryLocationId}`)
+      return updatedItem
+    }
+
+    return item
+  } catch (error) {
+    console.error(`❌ Error syncing item location ${itemId}:`, error)
+    throw error
+  }
+}
+
+/**
  * Validates that item.quantityInStock matches sum of batch quantities
  * @param itemId The ID of the item to validate
  * @returns Object with validation result and details
