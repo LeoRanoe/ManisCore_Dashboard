@@ -574,14 +574,14 @@ export function ItemDataTable({
                 Location
               </Label>
               <Select
-                value={sellLocationId}
-                onValueChange={setSellLocationId}
+                value={sellLocationId || "none"}
+                onValueChange={(value) => setSellLocationId(value === "none" ? "" : value)}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select location (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {locations
                     .filter(loc => loc.companyId === sellDialogItem?.companyId)
                     .map(location => (
@@ -597,14 +597,14 @@ export function ItemDataTable({
                 Sold By
               </Label>
               <Select
-                value={sellUserId}
-                onValueChange={setSellUserId}
+                value={sellUserId || "none"}
+                onValueChange={(value) => setSellUserId(value === "none" ? "" : value)}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select user (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {users
                     .filter(user => user.companyId === sellDialogItem?.companyId)
                     .map(user => (

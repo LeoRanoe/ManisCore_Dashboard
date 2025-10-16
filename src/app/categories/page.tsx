@@ -446,16 +446,16 @@ function CategoriesPage() {
               <div className="space-y-2">
                 <Label htmlFor="parentId">Parent Category</Label>
                 <Select
-                  value={formData.parentId}
+                  value={formData.parentId || "none"}
                   onValueChange={(value) =>
-                    setFormData({ ...formData, parentId: value })
+                    setFormData({ ...formData, parentId: value === "none" ? "" : value })
                   }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="None (Root Category)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None (Root Category)</SelectItem>
+                    <SelectItem value="none">None (Root Category)</SelectItem>
                     {getParentCategories()
                       .filter(cat => cat.id !== editingCategory?.id)
                       .map((category) => (
