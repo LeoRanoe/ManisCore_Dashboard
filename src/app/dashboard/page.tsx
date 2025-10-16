@@ -210,13 +210,19 @@ function DashboardPage() {
           const batchesData = await batchesResponse.json()
           const batches = batchesData.batches || []
           
+          console.log('[Dashboard] Total batches fetched:', batches.length)
+          
           // Only include arrived batches
           const arrivedBatches = batches.filter((b: any) => b.status === "Arrived")
+          console.log('[Dashboard] Arrived batches:', arrivedBatches.length)
           
           // Group by location
           const locationMap = new Map()
           arrivedBatches.forEach((batch: any) => {
-            if (!batch.location) return
+            if (!batch.location) {
+              console.log('[Dashboard] Batch without location:', batch.id)
+              return
+            }
             
             const locationId = batch.location.id
             const locationName = batch.location.name
@@ -234,8 +240,11 @@ function DashboardPage() {
             
             // Calculate value
             const costPerUnit = batch.costPerUnitUSD || 0
-            const freightPerUnit = batch.quantity > 0 ? batch.freightCostUSD / batch.quantity : 0
-            location.value += (costPerUnit + freightPerUnit) * batch.quantity
+            const freightPerUnit = batch.quantity > 0 ? (batch.freightCostUSD || 0) / batch.quantity : 0
+            const batchValue = (costPerUnit + freightPerUnit) * (batch.quantity || 0)
+            location.value += batchValue
+            
+            console.log(`[Dashboard] Batch ${batch.id}: location=${locationName}, qty=${batch.quantity}, value=${batchValue.toFixed(2)}`)
           })
           
           // Convert to array and sort by value
@@ -243,6 +252,7 @@ function DashboardPage() {
             .sort((a, b) => b.value - a.value)
             .slice(0, 10) // Top 10 locations
           
+          console.log('[Dashboard] Location stock data:', locationData)
           setLocationStockData(locationData)
         }
 
@@ -252,11 +262,17 @@ function DashboardPage() {
           const itemsData = await itemsResponse.json()
           const items = itemsData.items || []
           
+          console.log('[Dashboard] Total items fetched:', items.length)
+          
           // Calculate profit margin for each item
           const profitData = items
             .filter((item: any) => {
               // Only include arrived items with quantity > 0
-              return item.status === "Arrived" && item.quantityInStock > 0
+              const isValid = item.status === "Arrived" && item.quantityInStock > 0
+              if (!isValid) {
+                console.log(`[Dashboard] Filtered out item: ${item.name}, status=${item.status}, qty=${item.quantityInStock}`)
+              }
+              return isValid
             })
             .map((item: any) => {
               const quantity = item.quantityInStock || 0
@@ -267,6 +283,8 @@ function DashboardPage() {
               const profitPerUnit = sellingPrice - totalCostPerUnit
               const totalProfit = profitPerUnit * quantity
               const profitMargin = sellingPrice > 0 ? (profitPerUnit / sellingPrice) * 100 : 0
+              
+              console.log(`[Dashboard] Item: ${item.name}, margin=${profitMargin.toFixed(2)}%, profit=${totalProfit.toFixed(2)}`)
               
               return {
                 name: item.name,
@@ -280,6 +298,7 @@ function DashboardPage() {
             .sort((a: any, b: any) => b.profitMargin - a.profitMargin)
             .slice(0, 10) // Top 10
           
+          console.log('[Dashboard] Profit items data:', profitData)
           setTopProfitItems(profitData)
         }
 
