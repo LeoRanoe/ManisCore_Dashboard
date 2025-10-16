@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ImageUpload } from "@/components/ui/image-upload"
+import { MultiImageUpload } from "@/components/ui/multi-image-upload"
 
 const BatchFormSchema = z.object({
   itemId: z.string().min(1, "Item is required"),
@@ -64,7 +65,7 @@ interface StockBatch {
   expectedArrival?: string | null
   orderNumber?: string | null
   notes?: string | null
-  imageUrl?: string | null
+  imageUrls?: string[] | null
 }
 
 interface BatchFormDialogProps {
@@ -88,7 +89,7 @@ export function BatchFormDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
   const [filteredLocations, setFilteredLocations] = useState<Location[]>([])
-  const [imageUrl, setImageUrl] = useState<string | undefined>(batch?.imageUrl || undefined)
+  const [imageUrls, setImageUrls] = useState<string[]>(batch?.imageUrls || [])
 
   const {
     register,
@@ -118,7 +119,7 @@ export function BatchFormDialog({
   // Update form when batch changes
   useEffect(() => {
     if (batch) {
-      setImageUrl(batch.imageUrl || undefined)
+      setImageUrls(batch.imageUrls || [])
       setValue("itemId", batch.itemId)
       setValue("locationId", batch.locationId || "")
       setValue("quantity", batch.quantity)
@@ -130,7 +131,7 @@ export function BatchFormDialog({
       setValue("orderNumber", batch.orderNumber || "")
       setValue("notes", batch.notes || "")
     } else {
-      setImageUrl(undefined)
+      setImageUrls([])
       reset()
     }
   }, [batch, setValue, reset])
@@ -168,7 +169,7 @@ export function BatchFormDialog({
         expectedArrival: data.expectedArrival || undefined,
         orderNumber: data.orderNumber || undefined,
         notes: data.notes || undefined,
-        imageUrl: imageUrl || undefined,
+        imageUrls: imageUrls && imageUrls.length > 0 ? imageUrls : undefined,
       }
 
       const response = await fetch(url, {
@@ -190,7 +191,7 @@ export function BatchFormDialog({
       })
 
       onOpenChange(false)
-      setImageUrl(undefined)
+      setImageUrls([])
       reset()
       if (onSuccess) {
         onSuccess()
@@ -222,11 +223,12 @@ export function BatchFormDialog({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Product Image Upload */}
           <div className="border-b pb-4">
-            <ImageUpload
-              value={imageUrl}
-              onChange={setImageUrl}
-              label="Batch Product Image"
+            <MultiImageUpload
+              value={imageUrls}
+              onChange={setImageUrls}
+              label="Batch Product Images"
               disabled={isSubmitting}
+              maxImages={5}
             />
           </div>
 

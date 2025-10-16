@@ -102,7 +102,7 @@ model Item {
   supplier            String?
   supplierSku         String?
   useBatchSystem      Boolean      @default(true)
-  imageUrl            String?
+  imageUrls           String[]     @default([])
   assignedUser        User?        @relation("ItemToUser", fields: [assignedUserId], references: [id])
   company             Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   location            Location?    @relation("ItemToLocation", fields: [locationId], references: [id])
@@ -128,7 +128,7 @@ model StockBatch {
   itemId           String
   locationId       String?
   assignedUserId   String?
-  imageUrl         String?
+  imageUrls        String[]  @default([])
   assignedUser     User?     @relation("BatchToUser", fields: [assignedUserId], references: [id])
   item             Item      @relation("ItemBatches", fields: [itemId], references: [id], onDelete: Cascade)
   location         Location? @relation("BatchToLocation", fields: [locationId], references: [id])

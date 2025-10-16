@@ -25,7 +25,7 @@ interface StockBatch {
   orderedDate?: string | null
   arrivedDate?: string | null
   soldDate?: string | null
-  imageUrl?: string | null
+  imageUrls?: string[] | null
   location?: {
     id: string
     name: string
@@ -150,12 +150,34 @@ export function BatchDataTable({
           {batches.map((batch) => (
             <TableRow key={batch.id}>
               <TableCell>
-                {batch.imageUrl ? (
-                  <img
-                    src={batch.imageUrl}
-                    alt={batch.item?.name || 'Batch'}
-                    className="w-12 h-12 object-cover rounded border"
-                  />
+                {batch.imageUrls && batch.imageUrls.length > 0 ? (
+                  <div className="relative group">
+                    <img
+                      src={batch.imageUrls[0]}
+                      alt={batch.item?.name || 'Batch'}
+                      className="w-12 h-12 object-cover rounded border"
+                    />
+                    {batch.imageUrls.length > 1 && (
+                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full border-2 border-background">
+                        +{batch.imageUrls.length - 1}
+                      </div>
+                    )}
+                    {/* Hover preview gallery */}
+                    {batch.imageUrls.length > 0 && (
+                      <div className="absolute left-full ml-2 top-0 z-50 hidden group-hover:block">
+                        <div className="bg-background border rounded-lg shadow-lg p-2 grid grid-cols-2 gap-2 min-w-[200px]">
+                          {batch.imageUrls.map((url, idx) => (
+                            <img
+                              key={idx}
+                              src={url}
+                              alt={`${batch.item?.name || 'Batch'} ${idx + 1}`}
+                              className="w-20 h-20 object-cover rounded border"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center">
                     <ImageIcon className="h-6 w-6 text-muted-foreground" />

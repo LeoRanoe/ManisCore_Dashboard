@@ -54,7 +54,7 @@ interface Item {
   companyId: string
   assignedUserId?: string
   locationId?: string
-  imageUrl?: string
+  imageUrls?: string[]
   company: {
     id: string
     name: string
@@ -348,12 +348,30 @@ export function ItemDataTable({
                 items.map((item) => (
                   <TableRow key={item.id} className="hover:bg-muted/50">
                     <TableCell>
-                      {item.imageUrl ? (
-                        <img
-                          src={item.imageUrl}
-                          alt={item.name}
-                          className="w-12 h-12 object-cover rounded border"
-                        />
+                      {item.imageUrls && item.imageUrls.length > 0 ? (
+                        <div className="relative group">
+                          <img
+                            src={item.imageUrls[0]}
+                            alt={item.name}
+                            className="w-12 h-12 object-cover rounded border"
+                          />
+                          {item.imageUrls.length > 1 && (
+                            <div className="absolute bottom-0 right-0 bg-black/70 text-white text-xs px-1 rounded-tl">
+                              +{item.imageUrls.length - 1}
+                            </div>
+                          )}
+                          {/* Show all images on hover */}
+                          <div className="absolute left-full ml-2 top-0 hidden group-hover:flex gap-2 z-10 bg-background p-2 rounded-lg border shadow-lg">
+                            {item.imageUrls.map((url, idx) => (
+                              <img
+                                key={idx}
+                                src={url}
+                                alt={`${item.name} ${idx + 1}`}
+                                className="w-20 h-20 object-cover rounded border"
+                              />
+                            ))}
+                          </div>
+                        </div>
                       ) : (
                         <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center">
                           <ImageIcon className="h-6 w-6 text-muted-foreground" />
