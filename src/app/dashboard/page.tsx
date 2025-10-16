@@ -141,6 +141,8 @@ function DashboardPage() {
   const [selectedUser, setSelectedUser] = useState<string>("all")
   const [selectedLocation, setSelectedLocation] = useState<string>("all")
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([])
+  const [locationStockData, setLocationStockData] = useState<any[]>([])
+  const [topProfitItems, setTopProfitItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   // Fetch companies, users, and locations
@@ -200,6 +202,85 @@ function DashboardPage() {
           const metricsData = await metricsResponse.json()
           setMetrics(metricsData)
           setLowStockItems(metricsData.lowStockItems || [])
+        }
+
+        // Fetch batches to calculate location stock distribution
+        const batchesResponse = await fetch("/api/batches?limit=10000")
+        if (batchesResponse.ok) {
+          const batchesData = await batchesResponse.json()
+          const batches = batchesData.batches || []
+          
+          // Only include arrived batches
+          const arrivedBatches = batches.filter((b: any) => b.status === "Arrived")
+          
+          // Group by location
+          const locationMap = new Map()
+          arrivedBatches.forEach((batch: any) => {
+            if (!batch.location) return
+            
+            const locationId = batch.location.id
+            const locationName = batch.location.name
+            
+            if (!locationMap.has(locationId)) {
+              locationMap.set(locationId, {
+                name: locationName,
+                quantity: 0,
+                value: 0,
+              })
+            }
+            
+            const location = locationMap.get(locationId)
+            location.quantity += batch.quantity || 0
+            
+            // Calculate value
+            const costPerUnit = batch.costPerUnitUSD || 0
+            const freightPerUnit = batch.quantity > 0 ? batch.freightCostUSD / batch.quantity : 0
+            location.value += (costPerUnit + freightPerUnit) * batch.quantity
+          })
+          
+          // Convert to array and sort by value
+          const locationData = Array.from(locationMap.values())
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 10) // Top 10 locations
+          
+          setLocationStockData(locationData)
+        }
+
+        // Fetch items to calculate profit margins
+        const itemsResponse = await fetch(`/api/items?limit=1000&${params}`)
+        if (itemsResponse.ok) {
+          const itemsData = await itemsResponse.json()
+          const items = itemsData.items || []
+          
+          // Calculate profit margin for each item
+          const profitData = items
+            .filter((item: any) => {
+              // Only include arrived items with quantity > 0
+              return item.status === "Arrived" && item.quantityInStock > 0
+            })
+            .map((item: any) => {
+              const quantity = item.quantityInStock || 0
+              const costPerUnit = item.costPerUnitUSD || 0
+              const freightPerUnit = quantity > 0 ? (item.freightCostUSD || 0) / quantity : 0
+              const totalCostPerUnit = (costPerUnit + freightPerUnit) * 40 // Convert to SRD
+              const sellingPrice = item.sellingPriceSRD || 0
+              const profitPerUnit = sellingPrice - totalCostPerUnit
+              const totalProfit = profitPerUnit * quantity
+              const profitMargin = sellingPrice > 0 ? (profitPerUnit / sellingPrice) * 100 : 0
+              
+              return {
+                name: item.name,
+                profitMargin: profitMargin,
+                totalProfit: totalProfit,
+                quantity: quantity,
+                sellingPrice: sellingPrice,
+              }
+            })
+            .filter((item: any) => item.profitMargin > 0) // Only positive margins
+            .sort((a: any, b: any) => b.profitMargin - a.profitMargin)
+            .slice(0, 10) // Top 10
+          
+          setTopProfitItems(profitData)
         }
 
         // Fetch financial summary
@@ -604,27 +685,40 @@ function DashboardPage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Items by Status
+              <MapPin className="h-5 w-5" />
+              Stock Distribution by Location
             </CardTitle>
-            <CardDescription>Distribution of inventory items across different stages</CardDescription>
+            <CardDescription>Value and quantity of inventory across locations</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="name" className="text-xs" />
-                <YAxis className="text-xs" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--background))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Bar dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {locationStockData.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-[300px] text-center">
+                <MapPin className="h-12 w-12 text-muted-foreground/40 mb-3" />
+                <p className="text-sm text-muted-foreground font-medium">No location data available</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Assign items to locations to see distribution</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={locationStockData} layout="horizontal">
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis type="number" className="text-xs" />
+                  <YAxis type="category" dataKey="name" className="text-xs" width={100} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--background))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                    formatter={(value: any, name: string) => {
+                      if (name === 'value') return [`$${value.toFixed(2)}`, 'Stock Value']
+                      if (name === 'quantity') return [value, 'Units']
+                      return [value, name]
+                    }}
+                  />
+                  <Bar dataKey="value" fill="#10b981" radius={[0, 8, 8, 0]} name="Stock Value (USD)" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -695,6 +789,47 @@ function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Profit Analysis Chart */}
+      <Card className="hover:shadow-lg transition-shadow">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Top Items by Profit Potential
+          </CardTitle>
+          <CardDescription>Items with highest profit margins (in stock)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {topProfitItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-[300px] text-center">
+              <DollarSign className="h-12 w-12 text-muted-foreground/40 mb-3" />
+              <p className="text-sm text-muted-foreground font-medium">No profit data available</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Add items with pricing to see profit analysis</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={topProfitItems} layout="horizontal">
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis type="number" className="text-xs" />
+                <YAxis type="category" dataKey="name" className="text-xs" width={120} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--background))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }}
+                  formatter={(value: any, name: string) => {
+                    if (name === 'Profit Margin') return [`${value.toFixed(1)}%`, 'Profit Margin']
+                    if (name === 'Total Profit') return [`SRD ${value.toFixed(2)}`, 'Total Profit']
+                    return [value, name]
+                  }}
+                />
+                <Bar dataKey="profitMargin" fill="#8b5cf6" radius={[0, 8, 8, 0]} name="Profit Margin" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Company Metrics (when viewing all companies) */}
       {selectedCompany === "all" && metrics?.companyMetrics && Object.keys(metrics.companyMetrics).length > 0 && (
