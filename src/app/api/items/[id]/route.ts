@@ -79,17 +79,16 @@ export async function PUT(
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
-    // Check if status is changing TO "ToOrder" - this triggers cash deduction
-    // When you mark an item "To Order", you're committing to spend that money
-    if (existingItem.status !== 'ToOrder' && data.status === 'ToOrder') {
+    // Check if status is changing TO "Ordered" - this triggers cash deduction
+    // When you mark an item "Ordered", you're committing to spend that money
+    if (existingItem.status !== 'Ordered' && data.status === 'Ordered') {
       if (!existingItem.company) {
         return NextResponse.json({ error: 'Company not found' }, { status: 404 })
       }
 
-      // Calculate total order cost (cost per unit + freight, multiplied by quantity)
+      // Calculate total order cost (cost per unit multiplied by quantity)
       const quantityOrdered = data.quantityInStock || 0
-      const freightCost = data.freightCostUSD || 0
-      const totalOrderCostUSD = (data.costPerUnitUSD * quantityOrdered) + freightCost
+      const totalOrderCostUSD = data.costPerUnitUSD * quantityOrdered
 
       // Check if company has sufficient USD balance
       if (existingItem.company.cashBalanceUSD < totalOrderCostUSD) {
@@ -113,17 +112,16 @@ export async function PUT(
       })
     }
 
-    // Check if status is changing FROM "ToOrder" to something else - this refunds the cash
-    // If you cancel or change status away from "ToOrder", refund the reserved money
-    if (existingItem.status === 'ToOrder' && data.status !== 'ToOrder') {
+    // Check if status is changing FROM "Ordered" to something else - this refunds the cash
+    // If you cancel or change status away from "Ordered", refund the reserved money
+    if (existingItem.status === 'Ordered' && data.status !== 'Ordered') {
       if (!existingItem.company) {
         return NextResponse.json({ error: 'Company not found' }, { status: 404 })
       }
 
       // Calculate the refund amount using existing item costs
       const existingQty = existingItem.quantityInStock || 0
-      const existingFreight = existingItem.freightCostUSD || 0
-      const refundAmountUSD = (existingItem.costPerUnitUSD * existingQty) + existingFreight
+      const refundAmountUSD = existingItem.costPerUnitUSD * existingQty
 
       // Refund the cost to company's USD balance
       await prisma.company.update({

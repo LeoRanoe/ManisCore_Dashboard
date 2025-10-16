@@ -65,12 +65,11 @@ export async function syncItemQuantityFromBatches(itemId: string) {
     const totalQuantity = batchAggregation._sum.quantity || 0
 
     // Update item quantity to match batch total
+    // Note: We don't auto-update status here as it should be managed explicitly
     const updatedItem = await prisma.item.update({
       where: { id: itemId },
       data: { 
         quantityInStock: totalQuantity,
-        // Update status based on quantity
-        status: totalQuantity === 0 ? 'Sold' : undefined
       }
     })
 
