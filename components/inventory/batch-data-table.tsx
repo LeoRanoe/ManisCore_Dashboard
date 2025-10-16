@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Pencil, Trash2, ArrowRightLeft } from "lucide-react"
+import { Pencil, Trash2, ArrowRightLeft, Image as ImageIcon } from "lucide-react"
 
 interface StockBatch {
   id: string
@@ -25,6 +25,7 @@ interface StockBatch {
   orderedDate?: string | null
   arrivedDate?: string | null
   soldDate?: string | null
+  imageUrl?: string | null
   location?: {
     id: string
     name: string
@@ -131,6 +132,7 @@ export function BatchDataTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-[60px]">Image</TableHead>
             <TableHead>Item</TableHead>
             <TableHead>Location</TableHead>
             <TableHead>Quantity</TableHead>
@@ -147,6 +149,19 @@ export function BatchDataTable({
         <TableBody>
           {batches.map((batch) => (
             <TableRow key={batch.id}>
+              <TableCell>
+                {batch.imageUrl ? (
+                  <img
+                    src={batch.imageUrl}
+                    alt={batch.item?.name || 'Batch'}
+                    className="w-12 h-12 object-cover rounded border"
+                  />
+                ) : (
+                  <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center">
+                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                )}
+              </TableCell>
               <TableCell className="font-medium">
                 {batch.item?.name || "Unknown Item"}
               </TableCell>

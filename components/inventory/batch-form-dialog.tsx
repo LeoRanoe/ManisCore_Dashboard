@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ImageUpload } from "@/components/ui/image-upload"
 
 const BatchFormSchema = z.object({
   itemId: z.string().min(1, "Item is required"),
@@ -63,6 +64,7 @@ interface StockBatch {
   expectedArrival?: string | null
   orderNumber?: string | null
   notes?: string | null
+  imageUrl?: string | null
 }
 
 interface BatchFormDialogProps {
@@ -86,6 +88,7 @@ export function BatchFormDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
   const [filteredLocations, setFilteredLocations] = useState<Location[]>([])
+  const [imageUrl, setImageUrl] = useState<string | undefined>(batch?.imageUrl || undefined)
 
   const {
     register,
@@ -115,6 +118,7 @@ export function BatchFormDialog({
   // Update form when batch changes
   useEffect(() => {
     if (batch) {
+      setImageUrl(batch.imageUrl || undefined)
       setValue("itemId", batch.itemId)
       setValue("locationId", batch.locationId || "")
       setValue("quantity", batch.quantity)
@@ -126,6 +130,7 @@ export function BatchFormDialog({
       setValue("orderNumber", batch.orderNumber || "")
       setValue("notes", batch.notes || "")
     } else {
+      setImageUrl(undefined)
       reset()
     }
   }, [batch, setValue, reset])
@@ -163,6 +168,7 @@ export function BatchFormDialog({
         expectedArrival: data.expectedArrival || undefined,
         orderNumber: data.orderNumber || undefined,
         notes: data.notes || undefined,
+        imageUrl: imageUrl || undefined,
       }
 
       const response = await fetch(url, {
@@ -184,6 +190,7 @@ export function BatchFormDialog({
       })
 
       onOpenChange(false)
+      setImageUrl(undefined)
       reset()
       if (onSuccess) {
         onSuccess()
@@ -213,6 +220,16 @@ export function BatchFormDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Product Image Upload */}
+          <div className="border-b pb-4">
+            <ImageUpload
+              value={imageUrl}
+              onChange={setImageUrl}
+              label="Batch Product Image"
+              disabled={isSubmitting}
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             {/* Item Selection */}
             <div className="space-y-2">

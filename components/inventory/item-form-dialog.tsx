@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ImageUpload } from "@/components/ui/image-upload"
 import { ItemFormSchema, type ItemFormData } from "@/lib/validations"
 
 interface Company {
@@ -56,6 +57,7 @@ interface Item {
   companyId: string
   assignedUserId?: string
   locationId?: string
+  imageUrl?: string
   company: {
     name: string
   }
@@ -86,6 +88,7 @@ export function ItemFormDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [locations, setLocations] = useState<Location[]>([])
+  const [imageUrl, setImageUrl] = useState<string | undefined>(item?.imageUrl)
   const { toast } = useToast()
 
   const {
@@ -140,6 +143,7 @@ export function ItemFormDialog({
     if (isOpen) {
       if (item) {
         // Editing existing item
+        setImageUrl(item.imageUrl)
         reset({
           name: item.name,
           status: item.status,
@@ -160,6 +164,7 @@ export function ItemFormDialog({
         })
       } else {
         // Creating new item
+        setImageUrl(undefined)
         reset({
           name: "",
           status: "ToOrder",
@@ -239,6 +244,11 @@ export function ItemFormDialog({
         companyId: data.companyId,
       }
       
+      // Add image URL if present
+      if (imageUrl) {
+        cleanData.imageUrl = imageUrl
+      }
+      
       // Only add optional string fields if they have meaningful values
       // CRITICAL: Check both null/undefined AND empty string
       if (data.supplier && typeof data.supplier === 'string' && data.supplier.trim().length > 0) {
@@ -315,6 +325,7 @@ export function ItemFormDialog({
 
       // Reset form to default values for new items
       if (!item) {
+        setImageUrl(undefined)
         reset({
           name: "",
           status: "ToOrder",
@@ -402,6 +413,16 @@ export function ItemFormDialog({
                 <p className="text-sm text-red-500">{errors.companyId.message}</p>
               )}
             </div>
+          </div>
+
+          {/* Product Image Upload */}
+          <div className="border-t pt-4">
+            <ImageUpload
+              value={imageUrl}
+              onChange={setImageUrl}
+              label="Product Image"
+              disabled={isSubmitting}
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

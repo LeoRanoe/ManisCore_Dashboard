@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Edit, Trash2, MoreHorizontal, ArrowUpDown, ShoppingCart, Package2 } from "lucide-react"
+import { Edit, Trash2, MoreHorizontal, ArrowUpDown, ShoppingCart, Package2, Image as ImageIcon } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import {
   Table,
@@ -54,6 +54,7 @@ interface Item {
   companyId: string
   assignedUserId?: string
   locationId?: string
+  imageUrl?: string
   company: {
     id: string
     name: string
@@ -313,6 +314,7 @@ export function ItemDataTable({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[60px]">Image</TableHead>
                 <TableHead className="min-w-[150px]">
                   <SortableHeader field="name">Item</SortableHeader>
                 </TableHead>
@@ -338,13 +340,26 @@ export function ItemDataTable({
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                     No items found.
                   </TableCell>
                 </TableRow>
               ) : (
                 items.map((item) => (
                   <TableRow key={item.id} className="hover:bg-muted/50">
+                    <TableCell>
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="w-12 h-12 object-cover rounded border"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center">
+                          <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">
                       <div className="space-y-1">
                         <div className="font-medium">{item.name}</div>
