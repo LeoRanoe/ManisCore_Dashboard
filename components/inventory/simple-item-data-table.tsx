@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowUpDown, Edit, Trash2, Package, MapPin } from "lucide-react"
+import { ArrowUpDown, Edit, Trash2, Package, MapPin, Image as ImageIcon } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -32,6 +32,7 @@ interface Item {
   freightCostUSD: number
   sellingPriceSRD: number
   notes?: string
+  imageUrls?: string[]
   totalCostPerUnitUSD: number
   profitPerUnitSRD: number
   totalProfitSRD: number
@@ -129,7 +130,7 @@ export function SimpleItemDataTable({
           </TableHeader>
           <TableBody>
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                 No items found. Add your first inventory item to get started.
               </TableCell>
             </TableRow>
@@ -144,6 +145,7 @@ export function SimpleItemDataTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Image</TableHead>
             <SortableHeader field="name">Item Name</SortableHeader>
             <SortableHeader field="status">Status</SortableHeader>
             <SortableHeader field="quantityInStock">Stock</SortableHeader>
@@ -158,6 +160,41 @@ export function SimpleItemDataTable({
             
             return (
               <TableRow key={item.id}>
+                <TableCell>
+                  {item.imageUrls && item.imageUrls.length > 0 ? (
+                    <div className="relative group">
+                      <img
+                        src={item.imageUrls[0]}
+                        alt={item.name}
+                        className="w-12 h-12 object-cover rounded border"
+                      />
+                      {item.imageUrls.length > 1 && (
+                        <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full border-2 border-background">
+                          +{item.imageUrls.length - 1}
+                        </div>
+                      )}
+                      {/* Hover preview gallery */}
+                      {item.imageUrls.length > 0 && (
+                        <div className="absolute left-full ml-2 top-0 z-50 hidden group-hover:block">
+                          <div className="bg-background border rounded-lg shadow-lg p-2 grid grid-cols-2 gap-2 min-w-[200px]">
+                            {item.imageUrls.map((url, idx) => (
+                              <img
+                                key={idx}
+                                src={url}
+                                alt={`${item.name} ${idx + 1}`}
+                                className="w-20 h-20 object-cover rounded border"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center">
+                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell>
                   <div>
                     <div className="font-medium flex items-center gap-2">

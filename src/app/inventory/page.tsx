@@ -30,6 +30,7 @@ interface Item {
   freightCostUSD: number
   sellingPriceSRD: number
   notes?: string
+  imageUrls?: string[]
   totalCostPerUnitUSD: number
   profitPerUnitSRD: number
   totalProfitSRD: number
