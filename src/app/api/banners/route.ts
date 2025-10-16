@@ -13,10 +13,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Handle "all" companies case
+    const whereClause = companyId === "all" 
+      ? {} 
+      : { companyId }
+
     const banners = await prisma.banner.findMany({
-      where: {
-        companyId,
-      },
+      where: whereClause,
       orderBy: [
         { order: "asc" },
         { createdAt: "desc" },

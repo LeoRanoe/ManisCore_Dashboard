@@ -13,10 +13,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Handle "all" companies case
+    const whereClause = companyId === "all" 
+      ? {} 
+      : { companyId }
+
     const reviews = await prisma.review.findMany({
-      where: {
-        companyId,
-      },
+      where: whereClause,
       include: {
         item: {
           select: {

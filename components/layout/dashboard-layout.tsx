@@ -162,7 +162,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         )}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
           <div className="flex items-center">
             <Package className="h-8 w-8 text-primary mr-3" />
             <div className="flex flex-col">
@@ -182,7 +182,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Company Selector */}
-        <div className="px-4 py-4 border-b border-border">
+        <div className="px-4 py-4 border-b border-border flex-shrink-0">
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Select Company
@@ -206,8 +206,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-6">
+        {/* Navigation - Scrollable area */}
+        <nav className="flex-1 overflow-y-auto px-4 py-6">
           <div className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon
@@ -260,7 +260,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </nav>
 
         {/* Footer */}
-        <div className="px-4 py-4 border-t border-border space-y-2">
+        <div className="px-4 py-4 border-t border-border space-y-2 flex-shrink-0">
           <Button variant="ghost" size="sm" className="w-full justify-start h-12"> {/* Larger for mobile */}
             <Settings className="h-4 w-4 mr-2" />
             Settings
@@ -279,8 +279,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0"> {/* Remove margin on mobile */}
-        {/* Header */}
-        <header className="bg-card border-b border-border px-4 md:px-6 py-4">
+        {/* Header - Fixed */}
+        <header className="bg-card border-b border-border px-4 md:px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               {/* Mobile menu button */}
@@ -311,8 +311,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-auto">
+        {/* Page Content - Scrollable */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
           {children}
         </main>
       </div>

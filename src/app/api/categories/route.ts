@@ -13,10 +13,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Handle "all" companies case
+    const whereClause = companyId === "all" 
+      ? {} 
+      : { companyId }
+
     const categories = await prisma.category.findMany({
-      where: {
-        companyId,
-      },
+      where: whereClause,
       include: {
         _count: {
           select: { items: true },

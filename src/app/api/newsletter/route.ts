@@ -13,10 +13,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Handle "all" companies case
+    const whereClause = companyId === "all" 
+      ? {} 
+      : { companyId }
+
     const subscribers = await prisma.newsletterSubscriber.findMany({
-      where: {
-        companyId,
-      },
+      where: whereClause,
       orderBy: {
         createdAt: "desc",
       },
