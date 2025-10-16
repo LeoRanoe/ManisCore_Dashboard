@@ -712,102 +712,166 @@ function DashboardPage() {
 
       {/* Charts and Tables */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
+        <Card className="hover:shadow-lg transition-all duration-300 border-2 hover:border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <div className="p-2 bg-emerald-500/10 rounded-lg">
+                <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
               Stock Distribution by Location
             </CardTitle>
-            <CardDescription>Value and quantity of inventory across locations</CardDescription>
+            <CardDescription className="text-sm">Track inventory value and units across your storage locations</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-2">
             {locationStockData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[300px] text-center">
-                <MapPin className="h-12 w-12 text-muted-foreground/40 mb-3" />
-                <p className="text-sm text-muted-foreground font-medium">No location data available</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Assign items to locations to see distribution</p>
+              <div className="flex flex-col items-center justify-center h-[280px] sm:h-[320px] text-center bg-muted/20 rounded-lg border-2 border-dashed">
+                <MapPin className="h-16 w-16 text-muted-foreground/30 mb-4" />
+                <p className="text-base font-semibold text-muted-foreground">No Location Data</p>
+                <p className="text-xs text-muted-foreground/70 mt-2 max-w-[250px]">Assign items to locations to see your inventory distribution</p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={locationStockData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="name" className="text-xs" angle={-45} textAnchor="end" height={80} />
-                  <YAxis className="text-xs" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                    formatter={(value: any, name: string) => {
-                      if (name === 'Stock Value (USD)') return [`$${Number(value).toFixed(2)}`, 'Stock Value']
-                      if (name === 'Quantity') return [value, 'Units']
-                      return [value, name]
-                    }}
-                  />
-                  <Bar dataKey="quantity" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Quantity" />
-                  <Bar dataKey="value" fill="#10b981" radius={[8, 8, 0, 0]} name="Stock Value (USD)" />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="space-y-3">
+                <div className="flex items-center justify-end gap-4 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded bg-blue-500"></div>
+                    <span className="text-muted-foreground">Units</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded bg-emerald-500"></div>
+                    <span className="text-muted-foreground">Value (USD)</span>
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={280} className="sm:h-[320px]">
+                  <BarChart 
+                    data={locationStockData}
+                    margin={{ top: 5, right: 10, left: 0, bottom: 60 }}
+                  >
+                    <defs>
+                      <linearGradient id="colorQuantity" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.9}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.7}/>
+                      </linearGradient>
+                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.9}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.7}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
+                    <XAxis 
+                      dataKey="name" 
+                      className="text-xs font-medium"
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80}
+                      stroke="hsl(var(--muted-foreground))"
+                      tick={{ fill: 'hsl(var(--foreground))' }}
+                    />
+                    <YAxis 
+                      className="text-xs"
+                      stroke="hsl(var(--muted-foreground))"
+                      tick={{ fill: 'hsl(var(--foreground))' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                        padding: '12px'
+                      }}
+                      labelStyle={{
+                        fontWeight: 600,
+                        marginBottom: '8px',
+                        color: 'hsl(var(--foreground))'
+                      }}
+                      formatter={(value: any, name: string) => {
+                        if (name === 'Stock Value (USD)') return [`$${Number(value).toFixed(2)}`, 'Value']
+                        if (name === 'Quantity') return [value, 'Units']
+                        return [value, name]
+                      }}
+                      cursor={{ fill: 'hsl(var(--muted))', opacity: 0.15 }}
+                    />
+                    <Bar 
+                      dataKey="quantity" 
+                      fill="url(#colorQuantity)" 
+                      radius={[6, 6, 0, 0]} 
+                      name="Quantity"
+                      maxBarSize={60}
+                    />
+                    <Bar 
+                      dataKey="value" 
+                      fill="url(#colorValue)" 
+                      radius={[6, 6, 0, 0]} 
+                      name="Stock Value (USD)"
+                      maxBarSize={60}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between">
+        <Card className="hover:shadow-lg transition-all duration-300 border-2 hover:border-primary/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <div className="p-2 bg-yellow-500/10 rounded-lg">
+                  <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                </div>
                 Low Stock Alert
               </CardTitle>
-              <CardDescription>Items with less than 5 units in stock</CardDescription>
+              <CardDescription className="text-sm mt-1">Items with less than 5 units in stock</CardDescription>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-2">
             {lowStockItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <Package className="h-12 w-12 text-muted-foreground/40 mb-3" />
-                <p className="text-sm text-muted-foreground font-medium">All items are well stocked!</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">No items below 5 units</p>
+              <div className="flex flex-col items-center justify-center py-10 text-center bg-muted/20 rounded-lg border-2 border-dashed">
+                <Package className="h-16 w-16 text-emerald-500/40 mb-4" />
+                <p className="text-base font-semibold text-emerald-600 dark:text-emerald-400">All Stock Levels Good!</p>
+                <p className="text-xs text-muted-foreground/70 mt-2">No items below 5 units</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-lg border">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Item</TableHead>
-                      <TableHead className="hidden sm:table-cell">Company</TableHead>
-                      <TableHead className="text-center">Stock</TableHead>
-                      <TableHead>Status</TableHead>
+                  <TableHeader className="bg-muted/30">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="font-semibold">Item</TableHead>
+                      <TableHead className="hidden sm:table-cell font-semibold">Company</TableHead>
+                      <TableHead className="text-center font-semibold">Stock</TableHead>
+                      <TableHead className="font-semibold">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {lowStockItems.slice(0, 5).map((item) => (
-                      <TableRow key={item.id} className="hover:bg-muted/50">
+                      <TableRow key={item.id} className="hover:bg-muted/50 transition-colors">
                         <TableCell className="font-medium">
                           <div>
-                            <div className="font-semibold">{item.name}</div>
-                            <div className="text-xs text-muted-foreground sm:hidden">
+                            <div className="font-semibold text-sm">{item.name}</div>
+                            <div className="text-xs text-muted-foreground sm:hidden mt-0.5">
                               {item.company.name}
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="hidden sm:table-cell text-muted-foreground">
+                        <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
                           {item.company.name}
                         </TableCell>
                         <TableCell className="text-center">
-                          <span className={`font-bold px-2 py-1 rounded-md ${
+                          <span className={`inline-flex items-center justify-center font-bold px-3 py-1.5 rounded-lg text-sm min-w-[50px] ${
                             item.quantityInStock === 0 
-                              ? 'text-red-600 bg-red-100 dark:bg-red-950/30' 
+                              ? 'text-red-700 bg-red-100 dark:text-red-400 dark:bg-red-950/40 ring-2 ring-red-500/20' 
                               : item.quantityInStock < 3
-                              ? 'text-orange-600 bg-orange-100 dark:bg-orange-950/30'
-                              : 'text-yellow-600 bg-yellow-100 dark:bg-yellow-950/30'
+                              ? 'text-orange-700 bg-orange-100 dark:text-orange-400 dark:bg-orange-950/40 ring-2 ring-orange-500/20'
+                              : 'text-yellow-700 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-950/40 ring-2 ring-yellow-500/20'
                           }`}>
                             {item.quantityInStock}
                           </span>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={statusConfig[item.status as keyof typeof statusConfig]?.variant || "secondary"}>
+                          <Badge 
+                            variant={statusConfig[item.status as keyof typeof statusConfig]?.variant || "secondary"}
+                            className="font-medium"
+                          >
                             {statusConfig[item.status as keyof typeof statusConfig]?.label || item.status}
                           </Badge>
                         </TableCell>
@@ -822,42 +886,118 @@ function DashboardPage() {
       </div>
 
       {/* Profit Analysis Chart */}
-      <Card className="hover:shadow-lg transition-shadow">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Top Items by Profit Potential
+      <Card className="hover:shadow-lg transition-all duration-300 border-2 hover:border-primary/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <div className="p-2 bg-purple-500/10 rounded-lg">
+              <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            </div>
+            Top Items by Profit Margin
           </CardTitle>
-          <CardDescription>Items with highest profit margins (in stock)</CardDescription>
+          <CardDescription className="text-sm">Highest profit margin items currently in stock</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-2">
           {topProfitItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-[300px] text-center">
-              <DollarSign className="h-12 w-12 text-muted-foreground/40 mb-3" />
-              <p className="text-sm text-muted-foreground font-medium">No profit data available</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Add items with pricing to see profit analysis</p>
+            <div className="flex flex-col items-center justify-center h-[320px] sm:h-[380px] text-center bg-muted/20 rounded-lg border-2 border-dashed">
+              <DollarSign className="h-16 w-16 text-muted-foreground/30 mb-4" />
+              <p className="text-base font-semibold text-muted-foreground">No Profit Data</p>
+              <p className="text-xs text-muted-foreground/70 mt-2 max-w-[250px]">Add items with cost and selling price to see profit analysis</p>
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={topProfitItems}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="name" className="text-xs" angle={-45} textAnchor="end" height={100} />
-                <YAxis className="text-xs" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--background))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                  formatter={(value: any, name: string) => {
-                    if (name === 'Profit Margin') return [`${Number(value).toFixed(1)}%`, 'Profit Margin']
-                    if (name === 'Total Profit') return [`SRD ${Number(value).toFixed(2)}`, 'Total Profit']
-                    return [value, name]
-                  }}
-                />
-                <Bar dataKey="profitMargin" fill="#8b5cf6" radius={[8, 8, 0, 0]} name="Profit Margin" />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-muted-foreground">
+                  Showing top {topProfitItems.length} profitable items
+                </div>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <div className="w-3 h-3 rounded bg-purple-500"></div>
+                  <span className="text-muted-foreground">Profit Margin %</span>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={320} className="sm:h-[380px]">
+                <BarChart 
+                  data={topProfitItems}
+                  margin={{ top: 5, right: 10, left: 0, bottom: 80 }}
+                >
+                  <defs>
+                    <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.9}/>
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.6}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
+                  <XAxis 
+                    dataKey="name" 
+                    className="text-xs font-medium"
+                    angle={-45} 
+                    textAnchor="end" 
+                    height={100}
+                    stroke="hsl(var(--muted-foreground))"
+                    tick={{ fill: 'hsl(var(--foreground))' }}
+                  />
+                  <YAxis 
+                    className="text-xs"
+                    stroke="hsl(var(--muted-foreground))"
+                    tick={{ fill: 'hsl(var(--foreground))' }}
+                    label={{ 
+                      value: 'Profit Margin (%)', 
+                      angle: -90, 
+                      position: 'insideLeft',
+                      style: { textAnchor: 'middle', fill: 'hsl(var(--muted-foreground))' }
+                    }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                      padding: '12px'
+                    }}
+                    labelStyle={{
+                      fontWeight: 600,
+                      marginBottom: '8px',
+                      color: 'hsl(var(--foreground))'
+                    }}
+                    formatter={(value: any, name: string, props: any) => {
+                      if (name === 'Profit Margin') {
+                        const item = props.payload
+                        return [
+                          <div key="profit" className="space-y-1">
+                            <div className="font-semibold text-purple-600 dark:text-purple-400">
+                              {Number(value).toFixed(1)}% Margin
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Total Profit: SRD {Number(item.totalProfit).toFixed(2)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Quantity: {item.quantity} units
+                            </div>
+                          </div>,
+                          ''
+                        ]
+                      }
+                      return [value, name]
+                    }}
+                    cursor={{ fill: 'hsl(var(--muted))', opacity: 0.15 }}
+                  />
+                  <Bar 
+                    dataKey="profitMargin" 
+                    fill="url(#colorProfit)" 
+                    radius={[8, 8, 0, 0]} 
+                    name="Profit Margin"
+                    maxBarSize={70}
+                    label={{
+                      position: 'top',
+                      formatter: (value: any) => `${Number(value).toFixed(1)}%`,
+                      fill: 'hsl(var(--foreground))',
+                      fontSize: 11,
+                      fontWeight: 600
+                    }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </CardContent>
       </Card>
