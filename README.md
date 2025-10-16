@@ -4,6 +4,14 @@ A beautiful, modern, and feature-rich inventory management dashboard built with 
 
 ## ✨ Features
 
+### 🖼️ Product Image Management (NEW!)
+- Upload product images using Vercel Blob Storage
+- Add images when creating or editing items and batches
+- View product thumbnails in all inventory tables
+- Edit and delete images anytime
+- CDN-optimized delivery for fast loading
+- Support for all image formats (max 4.5MB)
+
 ### 🏢 Multi-Company Support
 - Support for multiple companies/business entities
 - Company-specific inventory tracking
@@ -21,6 +29,7 @@ A beautiful, modern, and feature-rich inventory management dashboard built with 
 - Advanced sorting and filtering capabilities
 - Search functionality across all item attributes
 - Pagination for large datasets
+- Product images with thumbnails
 
 ### 💰 Financial Analytics
 - Automatic calculation of total costs (including freight)
@@ -48,6 +57,7 @@ A beautiful, modern, and feature-rich inventory management dashboard built with 
 ### Prerequisites
 - Node.js 18+ 
 - pnpm (recommended) or npm
+- Vercel account (for image uploads)
 - PostgreSQL database (we recommend Neon for serverless PostgreSQL)
 
 ### Installation
@@ -72,7 +82,11 @@ A beautiful, modern, and feature-rich inventory management dashboard built with 
    ```env
    DATABASE_URL="your-postgresql-connection-string"
    DIRECT_URL="your-postgresql-connection-string"
+   BLOB_READ_WRITE_TOKEN="your-vercel-blob-token"
    ```
+
+   **📸 Image Upload Setup**: To enable product image uploads, you need to set up Vercel Blob Storage.
+   See [QUICK_START_BLOB.md](QUICK_START_BLOB.md) for a quick guide or [VERCEL_BLOB_SETUP.md](VERCEL_BLOB_SETUP.md) for detailed instructions.
 
 4. **Set up the database**
    ```bash
@@ -197,7 +211,12 @@ totalProfitSRD = profitPerUnitSRD * quantityInStock
 3. **Configure database**
    - Set up production PostgreSQL database
    - Update environment variables
-4. **Deploy**
+4. **Set up Vercel Blob Storage** (for image uploads)
+   - Create a Blob store in Vercel Dashboard
+   - Copy the `BLOB_READ_WRITE_TOKEN`
+   - Add it to environment variables
+   - See [QUICK_START_BLOB.md](QUICK_START_BLOB.md) for step-by-step guide
+5. **Deploy**
    ```bash
    pnpm build
    ```
@@ -206,7 +225,14 @@ totalProfitSRD = profitPerUnitSRD * quantityInStock
 ```env
 DATABASE_URL="your-production-database-url"
 DIRECT_URL="your-production-database-url"
+BLOB_READ_WRITE_TOKEN="your-vercel-blob-token"
 ```
+
+## 📚 Additional Documentation
+
+- **[QUICK_START_BLOB.md](QUICK_START_BLOB.md)** - Quick guide to set up image uploads
+- **[VERCEL_BLOB_SETUP.md](VERCEL_BLOB_SETUP.md)** - Comprehensive Vercel Blob setup guide
+- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Technical implementation details
 
 ## 🤝 Contributing
 
