@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Plus, Search, Building2, MoreHorizontal, Pencil, Trash2, Wallet } from "lucide-react"
+import { Plus, Search, Building2, MoreHorizontal, Pencil, Trash2, Wallet, Store } from "lucide-react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -267,6 +268,12 @@ function CompaniesPage() {
                           <DropdownMenuItem onClick={() => handleManageFinances(company)}>
                             <Wallet className="mr-2 h-4 w-4" />
                             Manage Finances
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/companies/${company.id}/ecommerce`}>
+                              <Store className="mr-2 h-4 w-4" />
+                              E-commerce Settings
+                            </Link>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem

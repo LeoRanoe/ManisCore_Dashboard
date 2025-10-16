@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
-import { BarChart3, Package, Settings, Users, MapPin, Building2, Menu, X, DollarSign, LogOut, Wallet } from 'lucide-react'
+import { BarChart3, Package, Settings, Users, MapPin, Building2, Menu, X, DollarSign, LogOut, Wallet, Star, MessageSquare, Tag, Image as ImageIcon, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -100,6 +100,36 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       href: '/companies',
       label: 'Companies',
       icon: Building2
+    },
+    {
+      href: '/reviews',
+      label: 'Reviews',
+      icon: Star
+    },
+    {
+      href: '/testimonials',
+      label: 'Testimonials',
+      icon: MessageSquare
+    },
+    {
+      href: '/faqs',
+      label: 'FAQs',
+      icon: MessageSquare
+    },
+    {
+      href: '/banners',
+      label: 'Banners',
+      icon: ImageIcon
+    },
+    {
+      href: '/categories',
+      label: 'Categories',
+      icon: Tag
+    },
+    {
+      href: '/newsletter',
+      label: 'Newsletter',
+      icon: Mail
     },
     {
       href: '/users',

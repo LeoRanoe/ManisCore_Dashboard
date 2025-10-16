@@ -26,10 +26,36 @@ model Company {
   cashBalanceUSD Float      @default(0)
   stockValueSRD  Float      @default(0)
   stockValueUSD  Float      @default(0)
+  
+  // Ecommerce Fields
+  businessHours       Json?      // { monday: "9AM-5PM", tuesday: "9AM-5PM", ... }
+  whatsappBusinessId  String?
+  whatsappGreeting    String?    @db.Text
+  
+  // Content & Policies
+  aboutUs             String?    @db.Text
+  shippingPolicy      String?    @db.Text
+  returnPolicy        String?    @db.Text
+  warrantyInfo        String?    @db.Text
+  termsOfService      String?    @db.Text
+  privacyPolicy       String?    @db.Text
+  
+  // Marketing & SEO
+  heroTitle           String?
+  heroSubtitle        String?
+  metaDescription     String?
+  metaKeywords        String[]   @default([])
+  
   expenses       Expense[]
   items          Item[]
   locations      Location[]
   users          User[]
+  reviews        Review[]
+  faqs           FAQ[]
+  banners        Banner[]
+  testimonials   Testimonial[]
+  categories     Category[]
+  newsletterSubscribers NewsletterSubscriber[]
 
   @@map("companies")
 }
@@ -126,6 +152,8 @@ model Item {
   company             Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   location            Location?    @relation("ItemToLocation", fields: [locationId], references: [id])
   batches             StockBatch[] @relation("ItemBatches")
+  reviews             Review[]
+  categories          Category[]   @relation("ItemCategories")
 
   @@map("items")
 }
@@ -154,6 +182,129 @@ model StockBatch {
 
   @@map("stock_batches")
 }
+
+// ============================================
+// ECOMMERCE MODELS
+// ============================================
+
+model Review {
+  id            String   @id @default(cuid())
+  rating        Int      // 1-5 stars
+  title         String?
+  comment       String?  @db.Text
+  reviewerName  String
+  reviewerEmail String?
+  isVerified    Boolean  @default(false)
+  isPublic      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  itemId        String
+  companyId     String
+  item          Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  @@map("reviews")
+}
+
+model FAQ {
+  id          String   @id @default(cuid())
+  question    String
+  answer      String   @db.Text
+  category    String?  // "Shipping", "Returns", "Products", "General"
+  order       Int      @default(0)
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  @@map("faqs")
+}
+
+model Banner {
+  id          String    @id @default(cuid())
+  title       String
+  description String?   @db.Text
+  imageUrl    String?
+  linkUrl     String?
+  linkText    String?
+  position    String    @default("hero") // "hero", "sidebar", "footer", "popup"
+  order       Int       @default(0)
+  isActive    Boolean   @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  @@map("banners")
+}
+
+model Testimonial {
+  id          String   @id @default(cuid())
+  name        String
+  role        String?  // "Happy Customer", "Business Owner", etc.
+  content     String   @db.Text
+  imageUrl    String?
+  rating      Int?     // 1-5 stars
+  isPublic    Boolean  @default(false)
+  isFeatured  Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  @@map("testimonials")
+}
+
+model Category {
+  id              String     @id @default(cuid())
+  name            String
+  slug            String     @unique
+  description     String?    @db.Text
+  imageUrl        String?
+  parentId        String?
+  order           Int        @default(0)
+  isPublic        Boolean    @default(true)
+  metaTitle       String?
+  metaDescription String?    @db.Text
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  
+  companyId   String
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent      Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  children    Category[] @relation("SubCategories")
+  items       Item[]     @relation("ItemCategories")
+  
+  @@map("categories")
+}
+
+model NewsletterSubscriber {
+  id          String   @id @default(cuid())
+  email       String
+  name        String?
+  isActive    Boolean  @default(true)
+  source      String?  // "homepage", "footer", "popup", etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  @@unique([email, companyId])
+  @@map("newsletter_subscribers")
+}
+
+// ============================================
+// ENUMS
+// ============================================
 
 enum UserRole {
   ADMIN

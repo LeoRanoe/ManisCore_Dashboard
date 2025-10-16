@@ -30,6 +30,19 @@ export async function GET(
         contactPhone: true,
         socialMedia: true,
         themeConfig: true,
+        // Ecommerce fields
+        businessHours: true,
+        whatsappGreeting: true,
+        aboutUs: true,
+        shippingPolicy: true,
+        returnPolicy: true,
+        warrantyInfo: true,
+        termsOfService: true,
+        privacyPolicy: true,
+        heroTitle: true,
+        heroSubtitle: true,
+        metaDescription: true,
+        metaKeywords: true,
         _count: { select: { items: true } }
       }
     });
