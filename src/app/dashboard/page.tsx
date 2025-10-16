@@ -249,7 +249,8 @@ function DashboardPage() {
           
           // Convert to array and sort by value
           const locationData = Array.from(locationMap.values())
-            .sort((a, b) => b.value - a.value)
+            .filter((loc) => loc.quantity > 0) // Show locations with ANY quantity
+            .sort((a, b) => b.value - a.value || b.quantity - a.quantity) // Sort by value, then quantity
             .slice(0, 10) // Top 10 locations
           
           console.log('[Dashboard] Location stock data:', locationData)
@@ -292,9 +293,19 @@ function DashboardPage() {
                 totalProfit: totalProfit,
                 quantity: quantity,
                 sellingPrice: sellingPrice,
+                costPerUnit: costPerUnit,
+                freightPerUnit: freightPerUnit,
+                totalCostPerUnit: totalCostPerUnit,
               }
             })
-            .filter((item: any) => item.profitMargin > 0) // Only positive margins
+            .filter((item: any) => {
+              // Only positive margins and items with selling price
+              const isValid = item.profitMargin > 0 && item.sellingPrice > 0
+              if (!isValid) {
+                console.log(`[Dashboard] Filtered out (no profit): ${item.name}, margin=${item.profitMargin.toFixed(2)}%, price=${item.sellingPrice}`)
+              }
+              return isValid
+            })
             .sort((a: any, b: any) => b.profitMargin - a.profitMargin)
             .slice(0, 10) // Top 10
           
@@ -729,11 +740,12 @@ function DashboardPage() {
                       borderRadius: '8px'
                     }}
                     formatter={(value: any, name: string) => {
-                      if (name === 'value') return [`$${value.toFixed(2)}`, 'Stock Value']
-                      if (name === 'quantity') return [value, 'Units']
+                      if (name === 'Stock Value (USD)') return [`$${Number(value).toFixed(2)}`, 'Stock Value']
+                      if (name === 'Quantity') return [value, 'Units']
                       return [value, name]
                     }}
                   />
+                  <Bar dataKey="quantity" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Quantity" />
                   <Bar dataKey="value" fill="#10b981" radius={[0, 8, 8, 0]} name="Stock Value (USD)" />
                 </BarChart>
               </ResponsiveContainer>
