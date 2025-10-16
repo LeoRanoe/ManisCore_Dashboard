@@ -12,6 +12,7 @@ export const ItemFormSchema = z.object({
   costPerUnitUSD: z.number().min(0, 'Cost must be non-negative'),
   freightCostUSD: z.number().min(0, 'Freight cost must be non-negative').default(0).optional(),
   sellingPriceSRD: z.number().min(0, 'Selling price must be non-negative'),
+  imageUrls: z.array(z.string().url()).optional().nullable(),
   supplier: z.string().optional().nullable(),
   supplierSku: z.string().optional().nullable(),
   orderDate: z.string().optional().nullable(),

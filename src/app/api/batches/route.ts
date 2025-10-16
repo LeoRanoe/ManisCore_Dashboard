@@ -63,7 +63,8 @@ export async function POST(request: NextRequest) {
       orderDate,
       expectedArrival,
       orderNumber,
-      notes
+      notes,
+      imageUrls
     } = body
 
     // Validate required fields
@@ -190,6 +191,7 @@ export async function POST(request: NextRequest) {
         expectedArrival: expectedArrival ? new Date(expectedArrival) : null,
         orderNumber: orderNumber || null,
         notes: notes || null,
+        imageUrls: imageUrls || [],
       },
       include: {
         item: {

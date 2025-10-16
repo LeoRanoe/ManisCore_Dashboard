@@ -240,6 +240,11 @@ export async function POST(request: NextRequest) {
       companyId: data.companyId,
     }
 
+    // Add imageUrls if present
+    if (data.imageUrls !== null && data.imageUrls !== undefined) {
+      prismaData.imageUrls = data.imageUrls
+    }
+
     // Only add optional string fields if they have values (not null, not undefined, not empty)
     if (data.supplier !== null && data.supplier !== undefined) {
       prismaData.supplier = data.supplier

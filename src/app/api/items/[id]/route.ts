@@ -32,6 +32,11 @@ export async function PUT(
       companyId: data.companyId,
     }
 
+    // Add imageUrls if present
+    if (data.imageUrls !== null && data.imageUrls !== undefined) {
+      cleanedData.imageUrls = data.imageUrls
+    }
+
     // Only add optional fields if they have values
     if (data.supplier) cleanedData.supplier = data.supplier
     if (data.supplierSku) cleanedData.supplierSku = data.supplierSku

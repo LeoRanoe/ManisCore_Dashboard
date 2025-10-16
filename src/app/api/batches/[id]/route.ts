@@ -52,7 +52,8 @@ export async function PATCH(
       expectedArrival,
       arrivedDate,
       orderNumber,
-      notes
+      notes,
+      imageUrls
     } = body
 
     // Get existing batch
@@ -114,6 +115,7 @@ export async function PATCH(
     else if (arrivedDate !== undefined) updateData.arrivedDate = arrivedDate ? new Date(arrivedDate) : null
     if (orderNumber !== undefined) updateData.orderNumber = orderNumber
     if (notes !== undefined) updateData.notes = notes
+    if (imageUrls !== undefined) updateData.imageUrls = imageUrls
 
     // Update batch
     const updatedBatch = await prisma.stockBatch.update({
