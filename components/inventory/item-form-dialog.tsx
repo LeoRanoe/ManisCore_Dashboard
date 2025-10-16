@@ -126,6 +126,7 @@ const ItemFormDialogComponent = ({
       status: item.status,
       quantityInStock: item.quantityInStock,
       costPerUnitUSD: item.costPerUnitUSD,
+      freightCostUSD: item.freightCostUSD || 0,
       sellingPriceSRD: item.sellingPriceSRD,
       supplier: (item as any).supplier || "",
       supplierSku: (item as any).supplierSku || "",
@@ -266,6 +267,7 @@ const ItemFormDialogComponent = ({
         status: data.status,
         quantityInStock: data.quantityInStock,
         costPerUnitUSD: data.costPerUnitUSD,
+        freightCostUSD: data.freightCostUSD || 0, // Required field, default to 0
         sellingPriceSRD: data.sellingPriceSRD,
         companyId: data.companyId,
       }
