@@ -44,6 +44,45 @@ export async function DELETE(
   try {
     const { id } = params
 
+    // Check if category exists and has dependencies
+    const category = await prisma.category.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            items: true,
+            children: true,
+          }
+        }
+      }
+    })
+
+    if (!category) {
+      return NextResponse.json(
+        { error: "Category not found" },
+        { status: 404 }
+      )
+    }
+
+    // Check if category has items or subcategories
+    const hasItems = category._count.items > 0
+    const hasChildren = category._count.children > 0
+
+    if (hasItems || hasChildren) {
+      return NextResponse.json(
+        { 
+          error: "Cannot delete category with items or subcategories",
+          message: `This category has ${category._count.items} items and ${category._count.children} subcategories. Please reassign or remove them first.`,
+          details: {
+            items: category._count.items,
+            subcategories: category._count.children
+          }
+        },
+        { status: 400 }
+      )
+    }
+
+    // Safe to delete
     await prisma.category.delete({
       where: { id },
     })

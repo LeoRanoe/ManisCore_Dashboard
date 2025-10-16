@@ -91,7 +91,40 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await (prisma as any).location.delete({
+    // Check if location exists and has dependencies
+    const location = await prisma.location.findUnique({
+      where: { id: params.id },
+      include: {
+        _count: {
+          select: {
+            items: true,
+            stockBatches: true,
+          }
+        }
+      }
+    })
+
+    if (!location) {
+      return NextResponse.json({ error: 'Location not found' }, { status: 404 })
+    }
+
+    // Check if location has items or batches assigned
+    const hasItems = location._count.items > 0
+    const hasBatches = location._count.stockBatches > 0
+
+    if (hasItems || hasBatches) {
+      return NextResponse.json({ 
+        error: 'Cannot delete location with assigned items or batches',
+        message: `This location has ${location._count.items} items and ${location._count.stockBatches} batches assigned. Please reassign or remove them first.`,
+        details: {
+          items: location._count.items,
+          batches: location._count.stockBatches
+        }
+      }, { status: 400 })
+    }
+
+    // Safe to delete
+    await prisma.location.delete({
       where: { id: params.id },
     })
 

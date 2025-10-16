@@ -69,45 +69,80 @@ export async function PUT(
       date: data.date ? new Date(data.date) : existingExpense.date,
     }
 
-    const updatedExpense = await (prisma as any).expense.update({
-      where: { id: params.id },
-      data: expenseData,
-      include: {
-        company: {
-          select: {
-            id: true,
-            name: true,
+    // Use a transaction to ensure atomicity
+    const result = await prisma.$transaction(async (tx) => {
+      // Update the expense
+      const updatedExpense = await (tx as any).expense.update({
+        where: { id: params.id },
+        data: expenseData,
+        include: {
+          company: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    })
+      })
 
-    // Update company cash balance - revert old amount and apply new amount
-    if (existingExpense.company) {
-      const company = existingExpense.company
-      const updateData: any = {}
-      
-      // Revert the old expense
-      if (existingExpense.currency === 'SRD') {
-        updateData.cashBalanceSRD = company.cashBalanceSRD + existingExpense.amount - data.amount
-      } else if (existingExpense.currency === 'USD') {
-        updateData.cashBalanceUSD = company.cashBalanceUSD + existingExpense.amount - data.amount
+      // Update company cash balance - revert old amount and apply new amount
+      // Handle currency changes properly by reverting in old currency and deducting in new currency
+      if (existingExpense.company) {
+        const company = existingExpense.company
+        
+        // Revert the old expense from its original currency
+        if (existingExpense.currency === 'SRD') {
+          await (tx as any).company.update({
+            where: { id: existingExpense.companyId },
+            data: {
+              cashBalanceSRD: company.cashBalanceSRD + existingExpense.amount
+            }
+          })
+        } else if (existingExpense.currency === 'USD') {
+          await (tx as any).company.update({
+            where: { id: existingExpense.companyId },
+            data: {
+              cashBalanceUSD: company.cashBalanceUSD + existingExpense.amount
+            }
+          })
+        }
+
+        // Get updated company balance for the new currency deduction
+        const updatedCompany = await (tx as any).company.findUnique({
+          where: { id: existingExpense.companyId }
+        })
+
+        if (updatedCompany) {
+          // Deduct the new expense in the new currency
+          if (data.currency === 'SRD') {
+            await (tx as any).company.update({
+              where: { id: existingExpense.companyId },
+              data: {
+                cashBalanceSRD: updatedCompany.cashBalanceSRD - data.amount
+              }
+            })
+          } else if (data.currency === 'USD') {
+            await (tx as any).company.update({
+              where: { id: existingExpense.companyId },
+              data: {
+                cashBalanceUSD: updatedCompany.cashBalanceUSD - data.amount
+              }
+            })
+          }
+        }
       }
 
-      await prisma.company.update({
-        where: { id: existingExpense.companyId },
-        data: updateData,
-      })
-    }
+      return updatedExpense
+    })
 
-    return NextResponse.json(updatedExpense)
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Error updating expense:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -131,26 +166,30 @@ export async function DELETE(
       return NextResponse.json({ error: 'Expense not found' }, { status: 404 })
     }
 
-    await (prisma as any).expense.delete({
-      where: { id: params.id },
-    })
-
-    // Revert company cash balance
-    if (existingExpense.company) {
-      const company = existingExpense.company
-      const updateData: any = {}
-      
-      if (existingExpense.currency === 'SRD') {
-        updateData.cashBalanceSRD = company.cashBalanceSRD + existingExpense.amount
-      } else if (existingExpense.currency === 'USD') {
-        updateData.cashBalanceUSD = company.cashBalanceUSD + existingExpense.amount
-      }
-
-      await prisma.company.update({
-        where: { id: existingExpense.companyId },
-        data: updateData,
+    // Use transaction to ensure atomicity
+    await prisma.$transaction(async (tx) => {
+      // Delete the expense
+      await (tx as any).expense.delete({
+        where: { id: params.id },
       })
-    }
+
+      // Revert company cash balance
+      if (existingExpense.company) {
+        const company = existingExpense.company
+        const updateData: any = {}
+        
+        if (existingExpense.currency === 'SRD') {
+          updateData.cashBalanceSRD = company.cashBalanceSRD + existingExpense.amount
+        } else if (existingExpense.currency === 'USD') {
+          updateData.cashBalanceUSD = company.cashBalanceUSD + existingExpense.amount
+        }
+
+        await (tx as any).company.update({
+          where: { id: existingExpense.companyId },
+          data: updateData,
+        })
+      }
+    })
 
     return NextResponse.json({ message: 'Expense deleted successfully' })
   } catch (error) {

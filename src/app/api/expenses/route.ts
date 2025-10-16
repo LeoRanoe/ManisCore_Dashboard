@@ -134,53 +134,58 @@ export async function POST(request: NextRequest) {
       date: data.date ? new Date(data.date) : new Date(),
     }
 
-    // Create the expense
-    const expense = await (prisma as any).expense.create({
-      data: expenseData,
-      include: {
-        company: {
-          select: {
-            id: true,
-            name: true,
+    // Use transaction to ensure atomicity
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the expense
+      const expense = await (tx as any).expense.create({
+        data: expenseData,
+        include: {
+          company: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+      })
+
+      // Update company cash balance based on currency
+      const company = await (tx as any).company.findUnique({
+        where: { id: data.companyId },
+        select: {
+          id: true,
+          name: true,
+          cashBalanceSRD: true,
+          cashBalanceUSD: true,
         },
-      },
-    })
+      })
 
-    // Update company cash balance based on currency
-    const company = await (prisma as any).company.findUnique({
-      where: { id: data.companyId },
-      select: {
-        id: true,
-        name: true,
-        cashBalanceSRD: true,
-        cashBalanceUSD: true,
-      },
-    })
+      if (company) {
+        const updateData: any = {}
+        
+        if (data.currency === 'SRD') {
+          updateData.cashBalanceSRD = company.cashBalanceSRD - data.amount
+        } else if (data.currency === 'USD') {
+          updateData.cashBalanceUSD = company.cashBalanceUSD - data.amount
+        }
 
-    if (company) {
-      const updateData: any = {}
-      
-      if (data.currency === 'SRD') {
-        updateData.cashBalanceSRD = company.cashBalanceSRD - data.amount
-      } else if (data.currency === 'USD') {
-        updateData.cashBalanceUSD = company.cashBalanceUSD - data.amount
+        await (tx as any).company.update({
+          where: { id: data.companyId },
+          data: updateData,
+        })
       }
 
-      await prisma.company.update({
-        where: { id: data.companyId },
-        data: updateData,
-      })
-    }
+      return expense
+    })
 
-    return NextResponse.json(expense, { status: 201 })
+    return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error('Error creating expense:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
