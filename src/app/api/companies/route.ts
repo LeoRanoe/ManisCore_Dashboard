@@ -27,6 +27,14 @@ export async function GET() {
   }
 }
 
+// Helper function to generate slug from name
+function generateSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -38,6 +46,11 @@ export async function POST(request: NextRequest) {
 
     // Process the data to handle JSON fields properly
     const processedData: any = { ...validation.data }
+    
+    // Auto-generate slug if not provided or empty
+    if (!processedData.slug || processedData.slug.trim() === '') {
+      processedData.slug = generateSlug(processedData.name)
+    }
     
     // Handle socialMedia: convert null to undefined, empty object to undefined
     if (processedData.socialMedia === null || 
@@ -59,7 +72,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating company:', error)
     if (error instanceof Error && error.message.includes('Unique constraint')) {
-      return NextResponse.json({ error: 'Company name already exists' }, { status: 409 })
+      return NextResponse.json({ error: 'Company name or slug already exists' }, { status: 409 })
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

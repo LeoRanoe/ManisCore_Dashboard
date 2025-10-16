@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { ImageUpload } from "@/components/ui/image-upload"
 import {
   Table,
   TableBody,
@@ -147,6 +148,16 @@ function BannersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedCompany) return
+
+    // Validate image URL
+    if (!formData.imageUrl || formData.imageUrl.trim() === "") {
+      toast({
+        title: "Validation Error",
+        description: "Please upload a banner image",
+        variant: "destructive",
+      })
+      return
+    }
 
     setSaving(true)
     try {
@@ -510,24 +521,17 @@ function BannersPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="imageUrl">Image URL *</Label>
-                <Input
-                  id="imageUrl"
-                  type="url"
-                  placeholder="https://..."
+                <ImageUpload
+                  label="Banner Image *"
                   value={formData.imageUrl}
-                  onChange={(e) =>
-                    setFormData({ ...formData, imageUrl: e.target.value })
+                  onChange={(url) =>
+                    setFormData({ ...formData, imageUrl: url || "" })
                   }
-                  required
+                  disabled={saving}
                 />
-                {formData.imageUrl && (
-                  <img
-                    src={formData.imageUrl}
-                    alt="Preview"
-                    className="mt-2 h-32 w-full object-cover rounded"
-                  />
-                )}
+                <p className="text-xs text-muted-foreground">
+                  Recommended size: 1920x600px for hero banners, 400x600px for sidebar
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -541,6 +545,9 @@ function BannersPage() {
                     setFormData({ ...formData, linkUrl: e.target.value })
                   }
                 />
+                <p className="text-xs text-muted-foreground">
+                  Optional: Where should users go when clicking the banner?
+                </p>
               </div>
 
               <div className="space-y-2">

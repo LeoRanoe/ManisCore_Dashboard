@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo, memo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useToast } from "@/components/ui/use-toast"
@@ -89,13 +89,13 @@ interface ItemFormDialogProps {
   onSuccess: () => void
 }
 
-export function ItemFormDialog({
+const ItemFormDialogComponent = ({
   isOpen,
   onClose,
   item,
   companies,
   onSuccess,
-}: ItemFormDialogProps) {
+}: ItemFormDialogProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [locations, setLocations] = useState<Location[]>([])
@@ -116,9 +116,9 @@ export function ItemFormDialog({
       slug: item.slug || "",
       description: item.description || "",
       shortDescription: item.shortDescription || "",
-      youtubeReviewUrls: item.youtubeReviewUrls || [],
+      youtubeReviewUrls: item.youtubeReviewUrls?.join('\n') || "" as any,
       specifications: item.specifications ? JSON.stringify(item.specifications, null, 2) : "",
-      tags: item.tags || [],
+      tags: item.tags?.join(', ') || "" as any,
       isFeatured: item.isFeatured || false,
       isPublic: item.isPublic ?? true,
       seoTitle: item.seoTitle || "",
@@ -143,9 +143,9 @@ export function ItemFormDialog({
       slug: "",
       description: "",
       shortDescription: "",
-      youtubeReviewUrls: [],
+      youtubeReviewUrls: "" as any,
       specifications: "",
-      tags: [],
+      tags: "" as any,
       isFeatured: false,
       isPublic: true,
       seoTitle: "",
@@ -221,36 +221,39 @@ export function ItemFormDialog({
   const watchedStatus = watch("status")
   const watchedCompanyId = watch("companyId")
 
-  // Fetch users and locations when company changes
-  useEffect(() => {
-    const fetchUsersAndLocations = async () => {
-      if (!watchedCompanyId) {
-        setUsers([])
-        setLocations([])
-        return
-      }
-
-      try {
-        // Fetch users for the selected company
-        const usersResponse = await fetch(`/api/users?companyId=${watchedCompanyId}`)
-        if (usersResponse.ok) {
-          const usersData = await usersResponse.json()
-          setUsers(usersData.users || [])
-        }
-
-        // Fetch locations for the selected company
-        const locationsResponse = await fetch(`/api/locations?companyId=${watchedCompanyId}`)
-        if (locationsResponse.ok) {
-          const locationsData = await locationsResponse.json()
-          setLocations(locationsData.locations || [])
-        }
-      } catch (error) {
-        console.error("Error fetching users/locations:", error)
-      }
+  // Memoize fetch function to prevent recreation on every render
+  const fetchUsersAndLocations = useCallback(async () => {
+    if (!watchedCompanyId) {
+      setUsers([])
+      setLocations([])
+      return
     }
 
-    fetchUsersAndLocations()
+    try {
+      // Fetch both in parallel for better performance
+      const [usersResponse, locationsResponse] = await Promise.all([
+        fetch(`/api/users?companyId=${watchedCompanyId}`),
+        fetch(`/api/locations?companyId=${watchedCompanyId}`)
+      ])
+
+      if (usersResponse.ok) {
+        const usersData = await usersResponse.json()
+        setUsers(usersData.users || [])
+      }
+
+      if (locationsResponse.ok) {
+        const locationsData = await locationsResponse.json()
+        setLocations(locationsData.locations || [])
+      }
+    } catch (error) {
+      console.error("Error fetching users/locations:", error)
+    }
   }, [watchedCompanyId])
+
+  // Fetch users and locations when company changes
+  useEffect(() => {
+    fetchUsersAndLocations()
+  }, [fetchUsersAndLocations])
 
   const onSubmit = async (data: ItemFormData) => {
     setIsSubmitting(true)
@@ -289,12 +292,29 @@ export function ItemFormDialog({
         cleanData.seoDescription = data.seoDescription.trim()
       }
       
-      // Handle arrays
-      if (data.youtubeReviewUrls && Array.isArray(data.youtubeReviewUrls) && data.youtubeReviewUrls.length > 0) {
-        cleanData.youtubeReviewUrls = data.youtubeReviewUrls.filter(url => url.trim().length > 0)
+      // Handle arrays - convert string input to array
+      // Tags: convert comma-separated string to array
+      if (data.tags) {
+        if (typeof data.tags === 'string') {
+          const tagsArray = (data.tags as string).split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0)
+          if (tagsArray.length > 0) {
+            cleanData.tags = tagsArray
+          }
+        } else if (Array.isArray(data.tags) && data.tags.length > 0) {
+          cleanData.tags = data.tags.filter((tag: string) => tag.trim().length > 0)
+        }
       }
-      if (data.tags && Array.isArray(data.tags) && data.tags.length > 0) {
-        cleanData.tags = data.tags.filter(tag => tag.trim().length > 0)
+      
+      // YouTube URLs: convert newline-separated string to array
+      if (data.youtubeReviewUrls) {
+        if (typeof data.youtubeReviewUrls === 'string') {
+          const urlsArray = (data.youtubeReviewUrls as string).split('\n').map((url: string) => url.trim()).filter((url: string) => url.length > 0)
+          if (urlsArray.length > 0) {
+            cleanData.youtubeReviewUrls = urlsArray
+          }
+        } else if (Array.isArray(data.youtubeReviewUrls) && data.youtubeReviewUrls.length > 0) {
+          cleanData.youtubeReviewUrls = data.youtubeReviewUrls.filter((url: string) => url.trim().length > 0)
+        }
       }
       
       // Handle specifications (convert string to JSON)
@@ -394,9 +414,9 @@ export function ItemFormDialog({
           slug: "",
           description: "",
           shortDescription: "",
-          youtubeReviewUrls: [],
+          youtubeReviewUrls: "" as any,
           specifications: "",
-          tags: [],
+          tags: "" as any,
           isFeatured: false,
           isPublic: true,
           seoTitle: "",
@@ -980,3 +1000,11 @@ export function ItemFormDialog({
     </Dialog>
   )
 }
+// Export memoized version to prevent unnecessary re-renders
+export const ItemFormDialog = memo(ItemFormDialogComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.isOpen === nextProps.isOpen &&
+    prevProps.item?.id === nextProps.item?.id &&
+    prevProps.companies.length === nextProps.companies.length
+  )
+})

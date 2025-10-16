@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, memo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useToast } from "@/components/ui/use-toast"
@@ -41,12 +41,12 @@ interface CompanyFormDialogProps {
   onSuccess: () => void
 }
 
-export function CompanyFormDialog({
+const CompanyFormDialogComponent = ({
   isOpen,
   onClose,
   company,
   onSuccess,
-}: CompanyFormDialogProps) {
+}: CompanyFormDialogProps) => {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
 
@@ -282,3 +282,10 @@ export function CompanyFormDialog({
     </Dialog>
   )
 }
+// Export memoized version for better performance
+export const CompanyFormDialog = memo(CompanyFormDialogComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.isOpen === nextProps.isOpen &&
+    prevProps.company?.id === nextProps.company?.id
+  )
+})

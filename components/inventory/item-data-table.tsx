@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo, memo } from "react"
 import { Edit, Trash2, MoreHorizontal, ArrowUpDown, ShoppingCart, Package2, Image as ImageIcon } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import {
@@ -124,7 +124,7 @@ export function ItemDataTable({
   const [users, setUsers] = useState<User[]>([])
   const { toast } = useToast()
 
-  // Fetch locations and users
+  // Fetch locations and users - memoize to prevent unnecessary fetches
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -148,9 +148,9 @@ export function ItemDataTable({
     }
     
     fetchData()
-  }, [])
+  }, []) // Empty dependency array - only fetch once
 
-  const handleDelete = async (item: Item) => {
+  const handleDelete = useCallback(async (item: Item) => {
     setIsDeleting(true)
     try {
       const response = await fetch(`/api/items/${item.id}`, {
@@ -177,9 +177,9 @@ export function ItemDataTable({
     } finally {
       setIsDeleting(false)
     }
-  }
+  }, [onRefresh, toast])
 
-  const handleSell = async (item: Item) => {
+  const handleSell = useCallback(async (item: Item) => {
     setIsSelling(true)
     try {
       const response = await fetch('/api/inventory/actions', {
@@ -224,9 +224,9 @@ export function ItemDataTable({
     } finally {
       setIsSelling(false)
     }
-  }
+  }, [sellQuantity, sellPrice, sellLocationId, sellUserId, onRefresh, toast])
 
-  const handleRemove = async (item: Item) => {
+  const handleRemove = useCallback(async (item: Item) => {
     setIsRemoving(true)
     try {
       const response = await fetch('/api/inventory/actions', {
@@ -267,23 +267,23 @@ export function ItemDataTable({
     } finally {
       setIsRemoving(false)
     }
-  }
+  }, [removeQuantity, removeReason, onRefresh, toast])
 
-  const openSellDialog = (item: Item) => {
+  const openSellDialog = useCallback((item: Item) => {
     setSellDialogItem(item)
     setSellQuantity(Math.min(1, item.quantityInStock))
     setSellPrice(item.sellingPriceSRD)
     setSellLocationId(item.locationId || "")
     setSellUserId(item.assignedUserId || "")
-  }
+  }, [])
 
-  const openRemoveDialog = (item: Item) => {
+  const openRemoveDialog = useCallback((item: Item) => {
     setRemoveDialogItem(item)
     setRemoveQuantity(Math.min(1, item.quantityInStock))
     setRemoveReason("")
-  }
+  }, [])
 
-  const SortableHeader = ({ field, children }: { field: string; children: React.ReactNode }) => (
+  const SortableHeader = useCallback(({ field, children }: { field: string; children: React.ReactNode }) => (
     <Button
       variant="ghost"
       className="h-auto p-0 font-medium hover:bg-transparent"
@@ -294,9 +294,9 @@ export function ItemDataTable({
         <ArrowUpDown className="h-4 w-4" />
       </span>
     </Button>
-  )
+  ), [onSort])
 
-  const formatCurrency = (amount: number, currency: string) => {
+  const formatCurrency = useCallback((amount: number, currency: string) => {
     if (currency === "SRD") {
       return `SRD ${amount.toFixed(2)}`
     }
@@ -305,7 +305,7 @@ export function ItemDataTable({
       currency: currency,
       minimumFractionDigits: 2,
     }).format(amount)
-  }
+  }, [])
 
   return (
     <>

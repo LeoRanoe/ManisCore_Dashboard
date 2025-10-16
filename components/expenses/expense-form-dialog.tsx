@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, memo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -43,13 +43,13 @@ const currencies = [
   { value: "USD", label: "USD (US Dollar)", symbol: "$" },
 ]
 
-export function ExpenseFormDialog({ 
+const ExpenseFormDialogComponent = ({ 
   expense, 
   companies, 
   currentUserId, 
   trigger, 
   onSuccess 
-}: ExpenseFormDialogProps) {
+}: ExpenseFormDialogProps) => {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
@@ -284,3 +284,11 @@ export function ExpenseFormDialog({
     </Dialog>
   )
 }
+// Export memoized version for better performance
+export const ExpenseFormDialog = memo(ExpenseFormDialogComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.expense?.id === nextProps.expense?.id &&
+    prevProps.companies.length === nextProps.companies.length &&
+    prevProps.currentUserId === nextProps.currentUserId
+  )
+})
