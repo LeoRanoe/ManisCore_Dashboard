@@ -292,28 +292,27 @@ const ItemFormDialogComponent = ({
         cleanData.seoDescription = data.seoDescription.trim()
       }
       
-      // Handle arrays - convert string input to array
-      // Tags: convert comma-separated string to array
+      // Handle arrays - convert string input to array if needed
       if (data.tags) {
         if (typeof data.tags === 'string') {
-          const tagsArray = (data.tags as string).split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0)
+          const tagsArray = data.tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0)
           if (tagsArray.length > 0) {
             cleanData.tags = tagsArray
           }
         } else if (Array.isArray(data.tags) && data.tags.length > 0) {
-          cleanData.tags = data.tags.filter((tag: string) => tag.trim().length > 0)
+          cleanData.tags = data.tags
         }
       }
       
-      // YouTube URLs: convert newline-separated string to array
+      // YouTube URLs - convert newline-separated string to array if needed
       if (data.youtubeReviewUrls) {
         if (typeof data.youtubeReviewUrls === 'string') {
-          const urlsArray = (data.youtubeReviewUrls as string).split('\n').map((url: string) => url.trim()).filter((url: string) => url.length > 0)
+          const urlsArray = data.youtubeReviewUrls.split('\n').map((url: string) => url.trim()).filter((url: string) => url.length > 0)
           if (urlsArray.length > 0) {
             cleanData.youtubeReviewUrls = urlsArray
           }
         } else if (Array.isArray(data.youtubeReviewUrls) && data.youtubeReviewUrls.length > 0) {
-          cleanData.youtubeReviewUrls = data.youtubeReviewUrls.filter((url: string) => url.trim().length > 0)
+          cleanData.youtubeReviewUrls = data.youtubeReviewUrls
         }
       }
       

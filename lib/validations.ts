@@ -10,9 +10,11 @@ export const ItemFormSchema = z.object({
   slug: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   shortDescription: z.string().max(500).optional().nullable(),
-  youtubeReviewUrls: z.array(z.string().url()).optional(),
+  // Accept both string (for form input) and array (for API) - make flexible for form
+  youtubeReviewUrls: z.union([z.string(), z.array(z.string().url())]).optional(),
   specifications: z.string().optional().nullable(), // Will be parsed as JSON
-  tags: z.array(z.string()).optional(),
+  // Accept both string (comma-separated) and array - make flexible for form
+  tags: z.union([z.string(), z.array(z.string())]).optional(),
   isFeatured: z.boolean().optional(),
   isPublic: z.boolean().optional(),
   seoTitle: z.string().optional().nullable(),
