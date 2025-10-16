@@ -297,6 +297,38 @@ export async function POST(request: NextRequest) {
       prismaData.minStockLevel = data.minStockLevel
     }
 
+    // E-commerce fields
+    if (data.slug !== null && data.slug !== undefined) {
+      prismaData.slug = data.slug
+    }
+    if (data.description !== null && data.description !== undefined) {
+      prismaData.description = data.description
+    }
+    if (data.shortDescription !== null && data.shortDescription !== undefined) {
+      prismaData.shortDescription = data.shortDescription
+    }
+    if (data.youtubeReviewUrls !== null && data.youtubeReviewUrls !== undefined) {
+      prismaData.youtubeReviewUrls = data.youtubeReviewUrls
+    }
+    if (data.specifications !== null && data.specifications !== undefined) {
+      prismaData.specifications = data.specifications
+    }
+    if (data.tags !== null && data.tags !== undefined) {
+      prismaData.tags = data.tags
+    }
+    if (data.isFeatured !== null && data.isFeatured !== undefined) {
+      prismaData.isFeatured = data.isFeatured
+    }
+    if (data.isPublic !== null && data.isPublic !== undefined) {
+      prismaData.isPublic = data.isPublic
+    }
+    if (data.seoTitle !== null && data.seoTitle !== undefined) {
+      prismaData.seoTitle = data.seoTitle
+    }
+    if (data.seoDescription !== null && data.seoDescription !== undefined) {
+      prismaData.seoDescription = data.seoDescription
+    }
+
     console.log('📦 Prisma data prepared:', JSON.stringify(prismaData, null, 2))
 
     // Check if an existing item with the same name and company exists

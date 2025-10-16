@@ -1,6 +1,27 @@
 {
   "sortedMiddleware": [],
   "middleware": {},
-  "functions": {},
+  "functions": {
+    "/api/upload/route": {
+      "files": [
+        "server/middleware-build-manifest.js",
+        "server/middleware-react-loadable-manifest.js",
+        "server/next-font-manifest.js",
+        "prerender-manifest.js",
+        "server/edge-runtime-webpack.js",
+        "server/app/api/upload/route.js"
+      ],
+      "name": "app/api/upload/route",
+      "page": "/api/upload/route",
+      "matchers": [
+        {
+          "regexp": "^/api/upload$",
+          "originalSource": "/api/upload"
+        }
+      ],
+      "wasm": [],
+      "assets": []
+    }
+  },
   "version": 2
 }

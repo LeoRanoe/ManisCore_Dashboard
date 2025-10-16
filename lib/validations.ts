@@ -7,6 +7,16 @@ export const CurrencyEnum = z.enum(['SRD', 'USD'])
 
 export const ItemFormSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name must be less than 100 characters'),
+  slug: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  shortDescription: z.string().max(500).optional().nullable(),
+  youtubeReviewUrls: z.array(z.string().url()).optional(),
+  specifications: z.string().optional().nullable(), // Will be parsed as JSON
+  tags: z.array(z.string()).optional(),
+  isFeatured: z.boolean().optional(),
+  isPublic: z.boolean().optional(),
+  seoTitle: z.string().optional().nullable(),
+  seoDescription: z.string().optional().nullable(),
   status: StatusEnum,
   quantityInStock: z.number().int().min(0, 'Quantity must be non-negative'),
   costPerUnitUSD: z.number().min(0, 'Cost must be non-negative'),
@@ -40,6 +50,23 @@ export const ItemQuerySchema = z.object({
 
 export const CompanyFormSchema = z.object({
   name: z.string().min(1, 'Company name is required').max(100, 'Company name must be less than 100 characters'),
+  slug: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  logoUrl: z.string().url().optional().nullable().or(z.literal('')),
+  bannerUrl: z.string().url().optional().nullable().or(z.literal('')),
+  contactEmail: z.string().email().optional().nullable().or(z.literal('')),
+  contactPhone: z.string().optional().nullable(),
+  socialMedia: z.object({
+    instagram: z.string().optional(),
+    facebook: z.string().optional(),
+    tiktok: z.string().optional(),
+  }).optional().nullable(),
+  themeConfig: z.object({
+    primaryColor: z.string().optional(),
+    secondaryColor: z.string().optional(),
+    accentColor: z.string().optional(),
+  }).optional().nullable(),
+  isPublic: z.boolean().optional(),
 })
 
 export const CompanyFinancialUpdateSchema = z.object({

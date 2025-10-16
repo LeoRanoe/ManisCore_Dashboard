@@ -34,8 +34,25 @@ export async function POST(request: NextRequest) {
           }, { status: 400 })
         }
 
+        // Process items to handle specifications field (convert string to object if needed)
+        const processedItems = validation.data.items.map((item: any) => {
+          const processed = { ...item }
+          // Handle specifications: convert null to undefined
+          if (processed.specifications === null) {
+            processed.specifications = undefined
+          } else if (typeof processed.specifications === 'string' && processed.specifications.trim()) {
+            try {
+              processed.specifications = JSON.parse(processed.specifications)
+            } catch (e) {
+              // If parsing fails, set to undefined
+              processed.specifications = undefined
+            }
+          }
+          return processed
+        })
+
         const createdItems = await prisma.$transaction(
-          validation.data.items.map((item) =>
+          processedItems.map((item) =>
             prisma.item.create({ data: item })
           )
         )
@@ -56,8 +73,24 @@ export async function POST(request: NextRequest) {
           }, { status: 400 })
         }
 
+        // Process updates to handle specifications field
+        const processedUpdates = validation.data.updates.map((update: any) => {
+          const processedData = { ...update.data }
+          // Handle specifications
+          if (processedData.specifications === null) {
+            processedData.specifications = undefined
+          } else if (typeof processedData.specifications === 'string' && processedData.specifications.trim()) {
+            try {
+              processedData.specifications = JSON.parse(processedData.specifications)
+            } catch (e) {
+              processedData.specifications = undefined
+            }
+          }
+          return { id: update.id, data: processedData }
+        })
+
         const updatedItems = await prisma.$transaction(
-          validation.data.updates.map((update) =>
+          processedUpdates.map((update) =>
             prisma.item.update({
               where: { id: update.id },
               data: update.data,

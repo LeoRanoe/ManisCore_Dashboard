@@ -11,6 +11,15 @@ datasource db {
 model Company {
   id             String     @id @default(cuid())
   name           String     @unique
+  slug           String?    @unique
+  description    String?
+  logoUrl        String?
+  bannerUrl      String?
+  contactEmail   String?
+  contactPhone   String?
+  socialMedia    Json?
+  themeConfig    Json?
+  isPublic       Boolean    @default(true)
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   cashBalanceSRD Float      @default(0)
@@ -83,6 +92,16 @@ model Expense {
 model Item {
   id                  String       @id @default(cuid())
   name                String
+  slug                String?
+  description         String?
+  shortDescription    String?
+  youtubeReviewUrls   String[]     @default([])
+  specifications      Json?
+  tags                String[]     @default([])
+  isFeatured          Boolean      @default(false)
+  isPublic            Boolean      @default(true)
+  seoTitle            String?
+  seoDescription      String?
   status              Status?      @default(ToOrder)
   quantityInStock     Int?         @default(0)
   costPerUnitUSD      Float

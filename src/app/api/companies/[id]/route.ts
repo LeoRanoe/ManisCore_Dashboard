@@ -42,11 +42,26 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid company data', details: validation.error.issues }, { status: 400 })
     }
 
+    // Process the data to handle JSON fields properly
+    const processedData: any = { ...validation.data }
+    
+    // Handle socialMedia: convert null to undefined, empty object to undefined
+    if (processedData.socialMedia === null || 
+        (processedData.socialMedia && Object.keys(processedData.socialMedia).length === 0)) {
+      processedData.socialMedia = undefined
+    }
+    
+    // Handle themeConfig: convert null to undefined, empty object to undefined
+    if (processedData.themeConfig === null || 
+        (processedData.themeConfig && Object.keys(processedData.themeConfig).length === 0)) {
+      processedData.themeConfig = undefined
+    }
+
     const company = await prisma.company.update({
       where: {
         id: params.id,
       },
-      data: validation.data,
+      data: processedData,
     })
 
     return NextResponse.json(company)

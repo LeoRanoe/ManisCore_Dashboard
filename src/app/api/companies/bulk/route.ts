@@ -34,8 +34,24 @@ export async function POST(request: NextRequest) {
           }, { status: 400 })
         }
 
+        // Process companies to handle JSON fields
+        const processedCompanies = validation.data.companies.map((company: any) => {
+          const processed = { ...company }
+          // Handle socialMedia: convert null to undefined, empty object to undefined
+          if (processed.socialMedia === null || 
+              (processed.socialMedia && Object.keys(processed.socialMedia).length === 0)) {
+            processed.socialMedia = undefined
+          }
+          // Handle themeConfig: convert null to undefined, empty object to undefined
+          if (processed.themeConfig === null || 
+              (processed.themeConfig && Object.keys(processed.themeConfig).length === 0)) {
+            processed.themeConfig = undefined
+          }
+          return processed
+        })
+
         const createdCompanies = await prisma.$transaction(
-          validation.data.companies.map((company) =>
+          processedCompanies.map((company) =>
             prisma.company.create({ data: company })
           )
         )
@@ -56,8 +72,24 @@ export async function POST(request: NextRequest) {
           }, { status: 400 })
         }
 
+        // Process updates to handle JSON fields
+        const processedUpdates = validation.data.updates.map((update: any) => {
+          const processedData = { ...update.data }
+          // Handle socialMedia
+          if (processedData.socialMedia === null || 
+              (processedData.socialMedia && Object.keys(processedData.socialMedia).length === 0)) {
+            processedData.socialMedia = undefined
+          }
+          // Handle themeConfig
+          if (processedData.themeConfig === null || 
+              (processedData.themeConfig && Object.keys(processedData.themeConfig).length === 0)) {
+            processedData.themeConfig = undefined
+          }
+          return { id: update.id, data: processedData }
+        })
+
         const updatedCompanies = await prisma.$transaction(
-          validation.data.updates.map((update) =>
+          processedUpdates.map((update) =>
             prisma.company.update({
               where: { id: update.id },
               data: update.data,

@@ -49,6 +49,16 @@ interface Location {
 interface Item {
   id: string
   name: string
+  slug?: string | null
+  description?: string | null
+  shortDescription?: string | null
+  youtubeReviewUrls?: string[]
+  specifications?: any
+  tags?: string[]
+  isFeatured?: boolean
+  isPublic?: boolean
+  seoTitle?: string | null
+  seoDescription?: string | null
   status: "ToOrder" | "Ordered" | "Arrived" | "Sold"
   quantityInStock: number
   costPerUnitUSD: number
@@ -103,6 +113,16 @@ export function ItemFormDialog({
     resolver: zodResolver(ItemFormSchema),
     defaultValues: item ? {
       name: item.name,
+      slug: item.slug || "",
+      description: item.description || "",
+      shortDescription: item.shortDescription || "",
+      youtubeReviewUrls: item.youtubeReviewUrls || [],
+      specifications: item.specifications ? JSON.stringify(item.specifications, null, 2) : "",
+      tags: item.tags || [],
+      isFeatured: item.isFeatured || false,
+      isPublic: item.isPublic ?? true,
+      seoTitle: item.seoTitle || "",
+      seoDescription: item.seoDescription || "",
       status: item.status,
       quantityInStock: item.quantityInStock,
       costPerUnitUSD: item.costPerUnitUSD,
@@ -120,6 +140,16 @@ export function ItemFormDialog({
       locationId: item.locationId || "",
     } : {
       name: "",
+      slug: "",
+      description: "",
+      shortDescription: "",
+      youtubeReviewUrls: [],
+      specifications: "",
+      tags: [],
+      isFeatured: false,
+      isPublic: true,
+      seoTitle: "",
+      seoDescription: "",
       status: "ToOrder",
       quantityInStock: 0,
       costPerUnitUSD: 0,
@@ -226,14 +256,6 @@ export function ItemFormDialog({
     setIsSubmitting(true)
     try {
       console.log('📝 Form data before cleaning:', data)
-      console.log('📝 Date fields:', { 
-        orderDate: data.orderDate, 
-        orderDateType: typeof data.orderDate,
-        orderDateLength: data.orderDate?.length,
-        expectedArrival: data.expectedArrival,
-        expectedArrivalType: typeof data.expectedArrival,
-        expectedArrivalLength: data.expectedArrival?.length
-      })
       
       // Clean up empty optional fields - convert empty strings to undefined
       const cleanData: any = {
@@ -250,8 +272,55 @@ export function ItemFormDialog({
         cleanData.imageUrls = imageUrls
       }
       
+      // E-commerce fields
+      if (data.slug && typeof data.slug === 'string' && data.slug.trim().length > 0) {
+        cleanData.slug = data.slug.trim()
+      }
+      if (data.description && typeof data.description === 'string' && data.description.trim().length > 0) {
+        cleanData.description = data.description.trim()
+      }
+      if (data.shortDescription && typeof data.shortDescription === 'string' && data.shortDescription.trim().length > 0) {
+        cleanData.shortDescription = data.shortDescription.trim()
+      }
+      if (data.seoTitle && typeof data.seoTitle === 'string' && data.seoTitle.trim().length > 0) {
+        cleanData.seoTitle = data.seoTitle.trim()
+      }
+      if (data.seoDescription && typeof data.seoDescription === 'string' && data.seoDescription.trim().length > 0) {
+        cleanData.seoDescription = data.seoDescription.trim()
+      }
+      
+      // Handle arrays
+      if (data.youtubeReviewUrls && Array.isArray(data.youtubeReviewUrls) && data.youtubeReviewUrls.length > 0) {
+        cleanData.youtubeReviewUrls = data.youtubeReviewUrls.filter(url => url.trim().length > 0)
+      }
+      if (data.tags && Array.isArray(data.tags) && data.tags.length > 0) {
+        cleanData.tags = data.tags.filter(tag => tag.trim().length > 0)
+      }
+      
+      // Handle specifications (convert string to JSON)
+      if (data.specifications && typeof data.specifications === 'string' && data.specifications.trim().length > 0) {
+        try {
+          cleanData.specifications = JSON.parse(data.specifications)
+        } catch (e) {
+          toast({
+            title: "Invalid Specifications",
+            description: "Specifications must be valid JSON format",
+            variant: "destructive",
+          })
+          setIsSubmitting(false)
+          return
+        }
+      }
+      
+      // Handle booleans
+      if (typeof data.isFeatured === 'boolean') {
+        cleanData.isFeatured = data.isFeatured
+      }
+      if (typeof data.isPublic === 'boolean') {
+        cleanData.isPublic = data.isPublic
+      }
+      
       // Only add optional string fields if they have meaningful values
-      // CRITICAL: Check both null/undefined AND empty string
       if (data.supplier && typeof data.supplier === 'string' && data.supplier.trim().length > 0) {
         cleanData.supplier = data.supplier.trim()
       }
@@ -260,19 +329,12 @@ export function ItemFormDialog({
       }
       
       // DATE FIELDS: Only add if they are non-empty strings
-      // This is the critical fix - don't send empty date strings!
       if (data.orderDate && typeof data.orderDate === 'string' && data.orderDate.trim().length > 0) {
         cleanData.orderDate = data.orderDate.trim()
-        console.log('✅ Including orderDate:', cleanData.orderDate)
-      } else {
-        console.log('⏭️  Skipping empty orderDate')
       }
       
       if (data.expectedArrival && typeof data.expectedArrival === 'string' && data.expectedArrival.trim().length > 0) {
         cleanData.expectedArrival = data.expectedArrival.trim()
-        console.log('✅ Including expectedArrival:', cleanData.expectedArrival)
-      } else {
-        console.log('⏭️  Skipping empty expectedArrival')
       }
       
       if (data.orderNumber && typeof data.orderNumber === 'string' && data.orderNumber.trim().length > 0) {
@@ -282,7 +344,7 @@ export function ItemFormDialog({
         cleanData.notes = data.notes.trim()
       }
       
-      // Handle numeric optional fields properly (0 is a valid value, so we check for null/undefined only)
+      // Handle numeric optional fields properly (0 is a valid value)
       if (data.profitMarginPercent !== null && data.profitMarginPercent !== undefined) {
         cleanData.profitMarginPercent = data.profitMarginPercent
       }
@@ -329,6 +391,16 @@ export function ItemFormDialog({
         setImageUrls([])
         reset({
           name: "",
+          slug: "",
+          description: "",
+          shortDescription: "",
+          youtubeReviewUrls: [],
+          specifications: "",
+          tags: [],
+          isFeatured: false,
+          isPublic: true,
+          seoTitle: "",
+          seoDescription: "",
           status: "ToOrder",
           quantityInStock: 0,
           costPerUnitUSD: 0,
@@ -745,6 +817,140 @@ export function ItemFormDialog({
                   </div>
                 </>
               )}
+            </div>
+          </div>
+
+          {/* E-COMMERCE FIELDS */}
+          <div className="border-t pt-4 mt-4">
+            <h3 className="text-md font-semibold mb-4">E-Commerce Settings</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="slug">Product Slug</Label>
+                <Input
+                  id="slug"
+                  {...register("slug")}
+                  placeholder="Auto-generated from name"
+                />
+                <p className="text-xs text-muted-foreground">Used in product URLs</p>
+                {errors.slug && (
+                  <p className="text-sm text-red-500">{errors.slug.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tags">Tags (comma-separated)</Label>
+                <Input
+                  id="tags"
+                  {...register("tags")}
+                  placeholder="smartphone, apple, 5g"
+                />
+                {errors.tags && (
+                  <p className="text-sm text-red-500">{errors.tags.message}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2 mt-4">
+              <Label htmlFor="shortDescription">Short Description</Label>
+              <Input
+                id="shortDescription"
+                {...register("shortDescription")}
+                placeholder="Brief product description (max 500 chars)"
+                maxLength={500}
+              />
+              {errors.shortDescription && (
+                <p className="text-sm text-red-500">{errors.shortDescription.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2 mt-4">
+              <Label htmlFor="description">Full Description</Label>
+              <Textarea
+                id="description"
+                {...register("description")}
+                rows={4}
+                placeholder="Detailed product description for e-commerce"
+              />
+              {errors.description && (
+                <p className="text-sm text-red-500">{errors.description.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2 mt-4">
+              <Label htmlFor="youtubeReviewUrls">YouTube Review URLs (one per line)</Label>
+              <Textarea
+                id="youtubeReviewUrls"
+                {...register("youtubeReviewUrls")}
+                rows={3}
+                placeholder="https://youtube.com/watch?v=..."
+              />
+              <p className="text-xs text-muted-foreground">Enter YouTube URLs, one per line</p>
+              {errors.youtubeReviewUrls && (
+                <p className="text-sm text-red-500">{errors.youtubeReviewUrls.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2 mt-4">
+              <Label htmlFor="specifications">Specifications (JSON format)</Label>
+              <Textarea
+                id="specifications"
+                {...register("specifications")}
+                rows={4}
+                placeholder={`{\n  "Screen": "6.7-inch",\n  "Processor": "A17 Pro",\n  "Storage": "256GB"\n}`}
+              />
+              <p className="text-xs text-muted-foreground">Enter as JSON object</p>
+              {errors.specifications && (
+                <p className="text-sm text-red-500">{errors.specifications.message}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="seoTitle">SEO Title</Label>
+                <Input
+                  id="seoTitle"
+                  {...register("seoTitle")}
+                  placeholder="SEO-optimized title"
+                />
+                {errors.seoTitle && (
+                  <p className="text-sm text-red-500">{errors.seoTitle.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="seoDescription">SEO Description</Label>
+                <Input
+                  id="seoDescription"
+                  {...register("seoDescription")}
+                  placeholder="Meta description for search engines"
+                />
+                {errors.seoDescription && (
+                  <p className="text-sm text-red-500">{errors.seoDescription.message}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-4 mt-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isFeatured"
+                  {...register("isFeatured")}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="isFeatured">Featured Product</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isPublic"
+                  {...register("isPublic")}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="isPublic">Show in E-Commerce</Label>
+              </div>
             </div>
           </div>
 

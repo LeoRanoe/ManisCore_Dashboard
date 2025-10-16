@@ -49,6 +49,18 @@ export async function PUT(
     if (data.assignedUserId) cleanedData.assignedUserId = data.assignedUserId
     if (data.locationId) cleanedData.locationId = data.locationId
 
+    // E-commerce fields
+    if (data.slug !== null && data.slug !== undefined) cleanedData.slug = data.slug
+    if (data.description !== null && data.description !== undefined) cleanedData.description = data.description
+    if (data.shortDescription !== null && data.shortDescription !== undefined) cleanedData.shortDescription = data.shortDescription
+    if (data.youtubeReviewUrls !== null && data.youtubeReviewUrls !== undefined) cleanedData.youtubeReviewUrls = data.youtubeReviewUrls
+    if (data.specifications !== null && data.specifications !== undefined) cleanedData.specifications = data.specifications
+    if (data.tags !== null && data.tags !== undefined) cleanedData.tags = data.tags
+    if (data.isFeatured !== null && data.isFeatured !== undefined) cleanedData.isFeatured = data.isFeatured
+    if (data.isPublic !== null && data.isPublic !== undefined) cleanedData.isPublic = data.isPublic
+    if (data.seoTitle !== null && data.seoTitle !== undefined) cleanedData.seoTitle = data.seoTitle
+    if (data.seoDescription !== null && data.seoDescription !== undefined) cleanedData.seoDescription = data.seoDescription
+
     // Check if item exists
     const existingItem = await prisma.item.findUnique({
       where: { id },

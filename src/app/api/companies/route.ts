@@ -36,8 +36,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid company data', details: validation.error.issues }, { status: 400 })
     }
 
+    // Process the data to handle JSON fields properly
+    const processedData: any = { ...validation.data }
+    
+    // Handle socialMedia: convert null to undefined, empty object to undefined
+    if (processedData.socialMedia === null || 
+        (processedData.socialMedia && Object.keys(processedData.socialMedia).length === 0)) {
+      processedData.socialMedia = undefined
+    }
+    
+    // Handle themeConfig: convert null to undefined, empty object to undefined
+    if (processedData.themeConfig === null || 
+        (processedData.themeConfig && Object.keys(processedData.themeConfig).length === 0)) {
+      processedData.themeConfig = undefined
+    }
+
     const company = await prisma.company.create({
-      data: validation.data,
+      data: processedData,
     })
 
     return NextResponse.json(company, { status: 201 })
