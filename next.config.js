@@ -1,6 +1,27 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Remove the experimental appDir option as it's stable in Next.js 14
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'public.blob.vercel-storage.com',
+      },
+    ],
+  },
+  async headers() {
+    return [
+      {
+        // Apply CORS headers to all API routes under /api/public
+        source: '/api/public/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Credentials', value: 'true' },
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT' },
+          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version' },
+        ],
+      },
+    ];
+  },
 }
 
 module.exports = nextConfig

@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
+// CORS headers for public API
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { slug: string } }
@@ -10,7 +21,10 @@ export async function GET(
     const companySlug = searchParams.get('companySlug');
 
     if (!companySlug) {
-      return NextResponse.json({ error: 'companySlug is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'companySlug is required' }, 
+        { status: 400, headers: corsHeaders }
+      );
     }
 
     const company = await prisma.company.findFirst({
@@ -19,7 +33,10 @@ export async function GET(
     });
 
     if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Company not found' }, 
+        { status: 404, headers: corsHeaders }
+      );
     }
 
     const product = await prisma.item.findFirst({
@@ -48,7 +65,10 @@ export async function GET(
     });
 
     if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Product not found' }, 
+        { status: 404, headers: corsHeaders }
+      );
     }
 
     // Get related products
@@ -70,9 +90,12 @@ export async function GET(
       take: 4
     });
 
-    return NextResponse.json({ ...product, relatedProducts });
+    return NextResponse.json({ ...product, relatedProducts }, { headers: corsHeaders });
   } catch (error) {
     console.error('Error fetching product:', error);
-    return NextResponse.json({ error: 'Failed to fetch product' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch product' }, 
+      { status: 500, headers: corsHeaders }
+    );
   }
 }
