@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { ArrowLeft, ShoppingCart, Package, TrendingUp, AlertCircle, Plus, RefreshCw, MapPin, Edit } from "lucide-react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Button } from "@/components/ui/button"
@@ -82,6 +82,7 @@ export default function OrderManagementPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [selectedBatch, setSelectedBatch] = useState<StockBatch | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
+  const [viewMode, setViewMode] = useState<"batches" | "items">("batches")
   const { toast } = useToast()
 
   const fetchBatches = async () => {
@@ -248,6 +249,64 @@ export default function OrderManagementPage() {
     return true
   })
 
+  // Aggregate batches by item for "By Item" view
+  interface AggregatedItem {
+    itemId: string
+    itemName: string
+    companyName: string
+    totalQuantity: number
+    batchCount: number
+    locations: Set<string>
+    batches: StockBatch[]
+    avgCostPerUnit: number
+    totalCost: number
+  }
+
+  const aggregatedItems = useMemo(() => {
+    const itemsMap = new Map<string, AggregatedItem>()
+
+    filteredBatches.forEach((batch) => {
+      const itemId = batch.item?.id || batch.itemId
+      const itemName = batch.item?.name || "Unknown Item"
+      const companyName = batch.item?.company?.name || "-"
+
+      if (!itemsMap.has(itemId)) {
+        itemsMap.set(itemId, {
+          itemId,
+          itemName,
+          companyName,
+          totalQuantity: 0,
+          batchCount: 0,
+          locations: new Set(),
+          batches: [],
+          avgCostPerUnit: 0,
+          totalCost: 0,
+        })
+      }
+
+      const aggregated = itemsMap.get(itemId)!
+      aggregated.totalQuantity += batch.quantity
+      aggregated.batchCount += 1
+      aggregated.batches.push(batch)
+      aggregated.totalCost += (batch.costPerUnitUSD * batch.quantity) + batch.freightCostUSD
+
+      if (batch.location?.name) {
+        aggregated.locations.add(batch.location.name)
+      }
+    })
+
+    // Calculate average cost per unit
+    itemsMap.forEach((item) => {
+      if (item.totalQuantity > 0) {
+        item.avgCostPerUnit = item.totalCost / item.totalQuantity
+      }
+    })
+
+    return Array.from(itemsMap.values()).sort((a, b) => 
+      a.itemName.localeCompare(b.itemName)
+    )
+  }, [filteredBatches])
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -331,7 +390,7 @@ export default function OrderManagementPage() {
         </Card>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 items-center">
         <div className="flex-1">
           <Input placeholder="Search by item, location, or company..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="max-w-sm" />
         </div>
@@ -347,6 +406,15 @@ export default function OrderManagementPage() {
             <SelectItem value="Sold">Sold</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={viewMode} onValueChange={(value: "batches" | "items") => setViewMode(value)}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="View Mode" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="batches">By Batch</SelectItem>
+            <SelectItem value="items">By Item</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {loading ? (
@@ -358,7 +426,7 @@ export default function OrderManagementPage() {
             <p>No order batches found. Create a new order batch to get started.</p>
           </CardContent>
         </Card>
-      ) : (
+      ) : viewMode === "batches" ? (
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -415,6 +483,70 @@ export default function OrderManagementPage() {
                         <Edit className="h-4 w-4" />
                       </Button>
                     </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Item</TableHead>
+                <TableHead>Company</TableHead>
+                <TableHead>Locations</TableHead>
+                <TableHead>Total Quantity</TableHead>
+                <TableHead>Batches</TableHead>
+                <TableHead>Avg Cost/Unit</TableHead>
+                <TableHead>Total Cost</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {aggregatedItems.map((item) => (
+                <TableRow key={item.itemId}>
+                  <TableCell className="font-medium">{item.itemName}</TableCell>
+                  <TableCell>{item.companyName}</TableCell>
+                  <TableCell>
+                    {item.locations.size === 0 ? (
+                      <span className="text-muted-foreground">No Location</span>
+                    ) : item.locations.size === 1 ? (
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        {Array.from(item.locations)[0]}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-sm font-medium">{item.locations.size} locations</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({Array.from(item.locations).join(", ")})
+                        </span>
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-semibold">{item.totalQuantity} units</TableCell>
+                  <TableCell>
+                    <span className="text-sm text-muted-foreground">
+                      {item.batchCount} {item.batchCount === 1 ? "batch" : "batches"}
+                    </span>
+                  </TableCell>
+                  <TableCell>${item.avgCostPerUnit.toFixed(2)}</TableCell>
+                  <TableCell className="font-medium">${item.totalCost.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Switch to batch view and highlight this item
+                        setViewMode("batches")
+                        setSearchQuery(item.itemName)
+                      }}
+                    >
+                      View Batches
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

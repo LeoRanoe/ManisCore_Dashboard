@@ -256,8 +256,15 @@ function InventoryPage() {
           <Button asChild variant="outline" size="sm" className="gap-2 flex-1 sm:flex-initial">
             <Link href="/inventory/locations">
               <MapPin className="h-4 w-4" />
-              <span className="hidden sm:inline">Locations</span>
-              <span className="sm:hidden">Locations</span>
+              <span className="hidden sm:inline">Items by Location</span>
+              <span className="sm:hidden">Items</span>
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="gap-2 flex-1 sm:flex-initial">
+            <Link href="/inventory/location-stock">
+              <Package2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Stock by Location</span>
+              <span className="sm:hidden">Stock</span>
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm" className="gap-2 flex-1 sm:flex-initial">
