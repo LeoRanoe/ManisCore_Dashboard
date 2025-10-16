@@ -729,10 +729,10 @@ function DashboardPage() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={locationStockData} layout="horizontal">
+                <BarChart data={locationStockData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis type="number" className="text-xs" />
-                  <YAxis type="category" dataKey="name" className="text-xs" width={100} />
+                  <XAxis dataKey="name" className="text-xs" angle={-45} textAnchor="end" height={80} />
+                  <YAxis className="text-xs" />
                   <Tooltip 
                     contentStyle={{ 
                       backgroundColor: 'hsl(var(--background))', 
@@ -745,8 +745,8 @@ function DashboardPage() {
                       return [value, name]
                     }}
                   />
-                  <Bar dataKey="quantity" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Quantity" />
-                  <Bar dataKey="value" fill="#10b981" radius={[0, 8, 8, 0]} name="Stock Value (USD)" />
+                  <Bar dataKey="quantity" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Quantity" />
+                  <Bar dataKey="value" fill="#10b981" radius={[8, 8, 0, 0]} name="Stock Value (USD)" />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -839,10 +839,10 @@ function DashboardPage() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={topProfitItems} layout="horizontal">
+              <BarChart data={topProfitItems}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis type="number" className="text-xs" />
-                <YAxis type="category" dataKey="name" className="text-xs" width={120} />
+                <XAxis dataKey="name" className="text-xs" angle={-45} textAnchor="end" height={100} />
+                <YAxis className="text-xs" />
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: 'hsl(var(--background))', 
@@ -850,12 +850,12 @@ function DashboardPage() {
                     borderRadius: '8px'
                   }}
                   formatter={(value: any, name: string) => {
-                    if (name === 'Profit Margin') return [`${value.toFixed(1)}%`, 'Profit Margin']
-                    if (name === 'Total Profit') return [`SRD ${value.toFixed(2)}`, 'Total Profit']
+                    if (name === 'Profit Margin') return [`${Number(value).toFixed(1)}%`, 'Profit Margin']
+                    if (name === 'Total Profit') return [`SRD ${Number(value).toFixed(2)}`, 'Total Profit']
                     return [value, name]
                   }}
                 />
-                <Bar dataKey="profitMargin" fill="#8b5cf6" radius={[0, 8, 8, 0]} name="Profit Margin" />
+                <Bar dataKey="profitMargin" fill="#8b5cf6" radius={[8, 8, 0, 0]} name="Profit Margin" />
               </BarChart>
             </ResponsiveContainer>
           )}
