@@ -21,6 +21,10 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const tags = searchParams.get('tags')?.split(',');
     const isFeatured = searchParams.get('isFeatured') === 'true';
+    const categorySlug = searchParams.get('category');
+    const minPrice = searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : undefined;
+    const maxPrice = searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : undefined;
+    const sortBy = searchParams.get('sortBy') || 'newest'; // newest, price-asc, price-desc, name
 
     if (!companySlug) {
       return NextResponse.json(
@@ -63,6 +67,39 @@ export async function GET(request: NextRequest) {
       where.isFeatured = true;
     }
 
+    if (categorySlug) {
+      where.categories = {
+        some: {
+          slug: categorySlug
+        }
+      };
+    }
+
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      where.sellingPriceSRD = {};
+      if (minPrice !== undefined) where.sellingPriceSRD.gte = minPrice;
+      if (maxPrice !== undefined) where.sellingPriceSRD.lte = maxPrice;
+    }
+
+    // Build orderBy
+    let orderBy: any = { createdAt: 'desc' };
+    switch (sortBy) {
+      case 'price-asc':
+        orderBy = { sellingPriceSRD: 'asc' };
+        break;
+      case 'price-desc':
+        orderBy = { sellingPriceSRD: 'desc' };
+        break;
+      case 'name':
+        orderBy = { name: 'asc' };
+        break;
+      case 'featured':
+        orderBy = [{ isFeatured: 'desc' }, { createdAt: 'desc' }];
+        break;
+      default:
+        orderBy = { createdAt: 'desc' };
+    }
+
     // Get total and products
     const [total, products] = await Promise.all([
       prisma.item.count({ where }),
@@ -80,7 +117,7 @@ export async function GET(request: NextRequest) {
           status: true,
           quantityInStock: true
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip: (page - 1) * limit,
         take: limit
       })
