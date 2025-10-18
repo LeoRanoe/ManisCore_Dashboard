@@ -3,7 +3,14 @@ import Credentials from "next-auth/providers/credentials"
 import { compare } from "bcryptjs"
 import { PrismaClient } from "@prisma/client"
 
-const prisma = new PrismaClient()
+// Use global prisma instance to prevent connection issues
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
+
+const prisma = globalForPrisma.prisma ?? new PrismaClient()
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
