@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, memo } from "react"
+import { useState, useCallback, memo, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useToast } from "@/components/ui/use-toast"
@@ -57,23 +57,44 @@ const CompanyFormDialogComponent = ({
     formState: { errors },
   } = useForm<CompanyFormData>({
     resolver: zodResolver(CompanyFormSchema),
-    defaultValues: company ? {
-      name: company.name,
-      slug: company.slug || "",
-      description: company.description || "",
-      logoUrl: company.logoUrl || "",
-      bannerUrl: company.bannerUrl || "",
-      contactEmail: company.contactEmail || "",
-      contactPhone: company.contactPhone || "",
-      socialMedia: company.socialMedia || { instagram: "", facebook: "", tiktok: "" },
-      themeConfig: company.themeConfig || { primaryColor: "", secondaryColor: "", accentColor: "" },
-      isPublic: company.isPublic ?? true,
-    } : {
+    defaultValues: {
       isPublic: true,
       socialMedia: { instagram: "", facebook: "", tiktok: "" },
       themeConfig: { primaryColor: "", secondaryColor: "", accentColor: "" },
     },
   })
+
+  // Reset form with company data when dialog opens or company changes
+  useEffect(() => {
+    if (isOpen && company) {
+      reset({
+        name: company.name,
+        slug: company.slug || "",
+        description: company.description || "",
+        logoUrl: company.logoUrl || "",
+        bannerUrl: company.bannerUrl || "",
+        contactEmail: company.contactEmail || "",
+        contactPhone: company.contactPhone || "",
+        socialMedia: company.socialMedia || { instagram: "", facebook: "", tiktok: "" },
+        themeConfig: company.themeConfig || { primaryColor: "", secondaryColor: "", accentColor: "" },
+        isPublic: company.isPublic ?? true,
+      })
+    } else if (isOpen && !company) {
+      // Reset to empty form for new company
+      reset({
+        name: "",
+        slug: "",
+        description: "",
+        logoUrl: "",
+        bannerUrl: "",
+        contactEmail: "",
+        contactPhone: "",
+        isPublic: true,
+        socialMedia: { instagram: "", facebook: "", tiktok: "" },
+        themeConfig: { primaryColor: "", secondaryColor: "", accentColor: "" },
+      })
+    }
+  }, [isOpen, company, reset])
 
   const handleFormSubmit = async (data: CompanyFormData) => {
     setIsLoading(true)
