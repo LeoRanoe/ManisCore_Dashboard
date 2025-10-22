@@ -320,7 +320,7 @@ const ItemFormDialogComponent = ({
       
       // Handle arrays - convert string input to array if needed
       if (data.tags) {
-        if (typeof data.tags === 'string') {
+        if (typeof data.tags === 'string' && data.tags.trim().length > 0) {
           const tagsArray = data.tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag.length > 0)
           if (tagsArray.length > 0) {
             cleanData.tags = tagsArray
@@ -332,7 +332,7 @@ const ItemFormDialogComponent = ({
       
       // YouTube URLs - convert newline-separated string to array if needed
       if (data.youtubeReviewUrls) {
-        if (typeof data.youtubeReviewUrls === 'string') {
+        if (typeof data.youtubeReviewUrls === 'string' && data.youtubeReviewUrls.trim().length > 0) {
           const urlsArray = data.youtubeReviewUrls.split('\n').map((url: string) => url.trim()).filter((url: string) => url.length > 0)
           if (urlsArray.length > 0) {
             cleanData.youtubeReviewUrls = urlsArray

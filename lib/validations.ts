@@ -11,12 +11,12 @@ export const ItemFormSchema = z.object({
   description: z.string().optional().nullable(),
   shortDescription: z.string().max(500).optional().nullable(),
   // Accept both string (for form input) and array (for API) - make flexible for form
-  youtubeReviewUrls: z.union([z.string(), z.array(z.string().url())]).optional(),
+  youtubeReviewUrls: z.union([z.string(), z.array(z.string())]).optional().nullable(),
   specifications: z.string().optional().nullable(), // Will be parsed as JSON
   // Accept both string (comma-separated) and array - make flexible for form
-  tags: z.union([z.string(), z.array(z.string())]).optional(),
-  isFeatured: z.boolean().optional(),
-  isPublic: z.boolean().optional(),
+  tags: z.union([z.string(), z.array(z.string())]).optional().nullable(),
+  isFeatured: z.boolean().optional().nullable(),
+  isPublic: z.boolean().optional().nullable(),
   seoTitle: z.string().optional().nullable(),
   seoDescription: z.string().optional().nullable(),
   status: StatusEnum,
@@ -24,7 +24,7 @@ export const ItemFormSchema = z.object({
   costPerUnitUSD: z.number().min(0, 'Cost must be non-negative'),
   freightCostUSD: z.number().min(0, 'Freight cost must be non-negative').default(0).optional(),
   sellingPriceSRD: z.number().min(0, 'Selling price must be non-negative'),
-  imageUrls: z.array(z.string().url()).optional(),
+  imageUrls: z.array(z.string().url()).optional().nullable(),
   supplier: z.string().optional().nullable(),
   supplierSku: z.string().optional().nullable(),
   orderDate: z.string().optional().nullable(),
