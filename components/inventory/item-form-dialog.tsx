@@ -181,6 +181,7 @@ const ItemFormDialogComponent = ({
           status: item.status,
           quantityInStock: item.quantityInStock,
           costPerUnitUSD: item.costPerUnitUSD,
+          freightCostUSD: (item as any).freightCostUSD || 0,
           sellingPriceSRD: item.sellingPriceSRD,
           supplier: (item as any).supplier || "",
           supplierSku: (item as any).supplierSku || "",
@@ -193,6 +194,17 @@ const ItemFormDialogComponent = ({
           companyId: item.companyId,
           assignedUserId: item.assignedUserId || "",
           locationId: item.locationId || "",
+          // E-commerce fields
+          slug: (item as any).slug || "",
+          description: (item as any).description || "",
+          shortDescription: (item as any).shortDescription || "",
+          seoTitle: (item as any).seoTitle || "",
+          seoDescription: (item as any).seoDescription || "",
+          tags: (item as any).tags || [],
+          youtubeReviewUrls: (item as any).youtubeReviewUrls || [],
+          specifications: (item as any).specifications ? JSON.stringify((item as any).specifications, null, 2) : "",
+          isFeatured: (item as any).isFeatured || false,
+          isPublic: (item as any).isPublic !== undefined ? (item as any).isPublic : true,
         })
       } else {
         // Creating new item
@@ -202,6 +214,7 @@ const ItemFormDialogComponent = ({
           status: "ToOrder",
           quantityInStock: 0,
           costPerUnitUSD: 0,
+          freightCostUSD: 0,
           sellingPriceSRD: 0,
           supplier: "",
           supplierSku: "",
@@ -214,6 +227,17 @@ const ItemFormDialogComponent = ({
           companyId: companies.length > 0 && companies[0].id ? companies[0].id : "",
           assignedUserId: "",
           locationId: "",
+          // E-commerce fields for new item
+          slug: "",
+          description: "",
+          shortDescription: "",
+          seoTitle: "",
+          seoDescription: "",
+          tags: [],
+          youtubeReviewUrls: [],
+          specifications: "",
+          isFeatured: false,
+          isPublic: true, // Default to true for new items
         })
       }
     }
